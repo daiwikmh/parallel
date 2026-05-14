@@ -1,0 +1,111 @@
+@import "tailwindcss";
+
+@theme {
+  /* Colors */
+  --color-bg-dark: #0F1F12;
+  --color-bg-dark-2: #1A2D1F;
+  --color-bg-cream: #F5F5EE;
+  --color-bg-cream-2: #FAFAF5;
+  --color-bg-white: #FFFFFF;
+
+  --color-accent-lime: #B5E853;
+  --color-accent-lime-bright: #C5F560;
+  --color-accent-yellow: #F4E76C;
+  --color-accent-orange: #E8956C;
+  --color-accent-blue: #6CB5E8;
+
+  --color-ink-dark: #0F1F12;
+  --color-ink-dark-muted: #5C6B61;
+  --color-ink-light: #F5F5EE;
+  --color-ink-light-muted: #8FA597;
+
+  /* Fonts */
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), 'IBM Plex Mono', monospace;
+  --font-display: var(--font-inter), system-ui, sans-serif;
+
+  /* Font sizes */
+  --text-display-1: clamp(3rem, 8vw, 7rem);
+  --text-display-1--line-height: 0.95;
+  --text-display-1--letter-spacing: -0.02em;
+  --text-display-2: clamp(2.5rem, 6vw, 5rem);
+  --text-display-2--line-height: 1.0;
+  --text-display-2--letter-spacing: -0.02em;
+  --text-h1: clamp(2rem, 4vw, 3.5rem);
+  --text-h1--line-height: 1.05;
+  --text-h1--letter-spacing: -0.01em;
+  --text-h2: clamp(1.5rem, 3vw, 2.5rem);
+  --text-h2--line-height: 1.1;
+  --text-h2--letter-spacing: -0.01em;
+  --text-h3: 1.5rem;
+  --text-h3--line-height: 1.2;
+  --text-label: 0.75rem;
+  --text-label--letter-spacing: 0.08em;
+  --text-label-sm: 0.6875rem;
+  --text-label-sm--letter-spacing: 0.1em;
+
+  /* Background images */
+  --background-image-grid-light: linear-gradient(to right, rgba(15, 31, 18, 0.06) 1px, transparent 1px), linear-gradient(to bottom, rgba(15, 31, 18, 0.06) 1px, transparent 1px);
+  --background-image-grid-dark: linear-gradient(to right, rgba(245, 245, 238, 0.04) 1px, transparent 1px), linear-gradient(to bottom, rgba(245, 245, 238, 0.04) 1px, transparent 1px);
+}
+
+@layer base {
+  body {
+    @apply bg-bg-dark text-ink-light font-sans antialiased;
+    font-feature-settings: "ss01", "cv01", "cv11";
+  }
+
+  ::selection {
+    background-color: #B5E853;
+    color: #0F1F12;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* Lenis smooth-scroll reset */
+  html.lenis,
+  html.lenis body {
+    height: auto;
+  }
+  .lenis.lenis-smooth {
+    scroll-behavior: auto !important;
+  }
+  .lenis.lenis-smooth [data-lenis-prevent] {
+    overscroll-behavior: contain;
+  }
+  .lenis.lenis-stopped {
+    overflow: clip;
+  }
+}
+
+@layer components {
+  .leader-line-dotted {
+    background-image: radial-gradient(circle, currentColor 0.5px, transparent 1px);
+    background-size: 5px 1px;
+    background-repeat: repeat-x;
+    background-position: 0 50%;
+    height: 1px;
+    opacity: 0.4;
+  }
+
+  .text-glow-lime {
+    text-shadow: 0 0 20px rgba(181, 232, 83, 0.4);
+  }
+
+  .grid-bg-light {
+    background-image: linear-gradient(to right, rgba(15, 31, 18, 0.06) 1px, transparent 1px), linear-gradient(to bottom, rgba(15, 31, 18, 0.06) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+
+  .grid-bg-dark {
+    background-image: linear-gradient(to right, rgba(245, 245, 238, 0.04) 1px, transparent 1px), linear-gradient(to bottom, rgba(245, 245, 238, 0.04) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+
+  .grid-bg-dark-lg {
+    background-image: linear-gradient(to right, rgba(245, 245, 238, 0.04) 1px, transparent 1px), linear-gradient(to bottom, rgba(245, 245, 238, 0.04) 1px, transparent 1px);
+    background-size: 64px 64px;
+  }
+}

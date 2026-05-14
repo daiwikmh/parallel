@@ -1,0 +1,23 @@
+{
+  "name": "back",
+  "version": "1.0.0",
+  "description": "og times backend",
+  "main": "index.js",
+  "scripts": {
+    "dev": "bun run --watch src/server.ts",
+    "start": "bun run src/server.ts",
+    "worker": "bun run test.ts",
+    "test": "bun run test.ts"
+  },
+  "author": "daiwik",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.16.0",
+    "crypto": "^1.0.1",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "isomorphic-dompurify": "^3.12.0",
+    "openai": "^6.37.0",
+    "rss-parser": "^3.13.0"
+  }
+}
