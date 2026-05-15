@@ -220,8 +220,21 @@ export async function listCommissions(): Promise<{ commissions: Commission[] }> 
   return jsonFetch(`/api/commissions`);
 }
 
-export async function runCommission(id: string): Promise<AgentRunResult & { graph: { entities: number; edges: number }; commissionId?: string }> {
-  return jsonFetch(`/api/commissions/${id}/run`, { method: "POST" });
+export interface CommissionBatchResult {
+  commissionId: string;
+  processed: number;
+  totalEntities: number;
+  totalEdges: number;
+  durationMs: number;
+  errors: string[];
+  status: "ok" | "no_coverage";
+  message?: string;
+  source: "cache" | "targeted" | "none";
+}
+
+export async function runCommission(id: string, limit?: number): Promise<CommissionBatchResult> {
+  const qs = limit ? `?limit=${limit}` : "";
+  return jsonFetch(`/api/commissions/${id}/run${qs}`, { method: "POST" });
 }
 
 export async function dropCommission(id: string): Promise<{ ok: true }> {

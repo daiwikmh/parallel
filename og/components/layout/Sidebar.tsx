@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { Logo } from "../ui/Logo";
 import { AuthButton } from "../ui/AuthButton";
+import { ConnectWallet } from "../wallet/ConnectWallet";
 import { fetchNewsStatus } from "@/lib/api";
 
 interface NavItem {
@@ -16,8 +17,6 @@ const NAV: NavItem[] = [
   { href: "/dashboard",            label: "Dashboard",  letter: "D" },
   { href: "/sources",              label: "Sources",    letter: "S" },
   { href: "/agent",                label: "Agent",      letter: "A" },
-  { href: "/graph",                label: "Graph",      letter: "G" },
-  { href: "/dashboard/commission", label: "Commission", letter: "C" },
 ];
 
 function activeHref(pathname: string): string | null {
@@ -161,6 +160,7 @@ export function Sidebar() {
       </div>
 
       {navList}
+      <ConnectWallet collapsed={collapsed} />
       {statusPill}
 
       <button
