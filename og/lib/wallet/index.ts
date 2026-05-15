@@ -22,3 +22,5 @@ export {
 } from "./utils";
 
 export { getWalletClient, DEFAULT_CONNECT_CHAINS } from "./client";
+
+export { payForCommission, PAYMENT_CONTRACT_ADDRESS, DEFAULT_PRICE_OG } from "./payment";

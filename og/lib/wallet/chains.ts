@@ -10,7 +10,7 @@ export interface ChainInfo {
 }
 
 export const OG_GALILEO: ChainInfo = {
-  id: "0x40D9",
+  id: "0x40d9",
   decimalId: 16601,
   name: "0G Galileo Testnet",
   shortName: "0G",

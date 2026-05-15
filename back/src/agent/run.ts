@@ -1,6 +1,7 @@
 import type { NewsItem, EditorialResult } from '../lib/types'
 import { getCachedNews } from '../worker/cache'
 import { searchNewsForEntity } from '../worker/entitySearch'
+import { fetchUserSources } from '../worker/userSources'
 import { generateEditorial } from './editorial'
 import { extractGraph } from './extract'
 import { addActivity } from './activity'
@@ -9,12 +10,16 @@ import {
   upsertEntity,
   insertEdge,
   insertTrace,
+  insertBrief,
   getCommission,
   getEntity,
   linkArticleEntity,
   linkCommissionArticle,
 } from '../db/repo'
 import { refreshTokenPrice } from '../worker/priceData'
+import { uploadJSON } from '../og/storage'
+import { db } from '../db/client'
+import { evaluateAndFire } from '../alerts/engine'
 
 export interface AgentRunResult {
   pickedItem: NewsItem
@@ -94,7 +99,25 @@ export async function runCommissionBatch(commissionId: string, limit = 3): Promi
 
     addActivity('SCAN', `cache filter for ${terms.slice(0, 4).join(', ')}`)
     const news = await getCachedNews()
-    let filtered = filterByTerms(news.ranked, terms).slice(0, limit)
+    const cacheItems = filterByTerms(news.ranked, terms)
+
+    addActivity('SOURCES', 'fetching your custom sources')
+    let userItems: NewsItem[] = []
+    try {
+      const fetched = await fetchUserSources(commissionId)
+      const flat: NewsItem[] = []
+      for (const r of fetched) {
+        if (r.error) addActivity('WARN', `source ${r.source.url} failed: ${r.error.slice(0, 80)}`)
+        flat.push(...r.items)
+      }
+      userItems = filterByTerms(flat, terms)
+      if (userItems.length > 0) addActivity('SOURCES', `${userItems.length} matching items from your sources`)
+    } catch (e) {
+      addActivity('WARN', `user sources fetch failed: ${(e as Error).message}`)
+    }
+
+    const merged = mergeAndDedupe(userItems, cacheItems).slice(0, limit)
+    let filtered = merged
     let source: 'cache' | 'targeted' | 'none' = filtered.length ? 'cache' : 'none'
 
     if (filtered.length === 0) {
@@ -192,6 +215,18 @@ async function runOnce(opts: RunOptions): Promise<AgentRunResult> {
     const { editorial, source } = await generateEditorial(pickedItem)
     if (source.trace) insertTrace({ trace: source.trace, model: source.model, kind: 'chat', commission_id: commissionId ?? null })
 
+    let briefId: number | null = null
+    if (commissionId) {
+      const briefBody = formatBriefMarkdown(pickedItem, editorial.editorial)
+      const brief = insertBrief({
+        commission_id: commissionId,
+        article_id: pickedItem.id,
+        body_md: briefBody,
+        trace_id: source.trace?.request_id ?? null,
+      })
+      briefId = brief.id
+    }
+
     addActivity('GRAPH', 'extracting typed entities and edges')
     let graphCounts = { entities: 0, edges: 0 }
     try {
@@ -199,11 +234,18 @@ async function runOnce(opts: RunOptions): Promise<AgentRunResult> {
       if (extractSource.trace) insertTrace({ trace: extractSource.trace, model: extractSource.model, kind: 'chat', commission_id: commissionId ?? null })
 
       for (const ent of extracted.entities) {
+        const attrs: Record<string, unknown> = {}
+        if (typeof ent.sentiment === 'number') {
+          attrs.sentiment = ent.sentiment
+          attrs.sentiment_at = Date.now()
+          attrs.sentiment_article_id = pickedItem.id
+        }
         upsertEntity({
           canonical_id: ent.canonical_id,
           type: ent.type,
           name: ent.name,
           aliases: ent.aliases,
+          attributes: Object.keys(attrs).length ? attrs : undefined,
         })
         linkArticleEntity(pickedItem.id, ent.canonical_id)
       }
@@ -269,8 +311,51 @@ async function runOnce(opts: RunOptions): Promise<AgentRunResult> {
         entities: extracted.entities.length + 1,
         edges: extracted.edges.length + mentionsAdded,
       }
+
+      if (commissionId) {
+        try {
+          const syntheticMentions = Array.from(linkTargets).map((targetId) => ({
+            src_canonical_id: articleEventId,
+            dst_canonical_id: targetId,
+            type: 'mentions' as const,
+            properties: {},
+            evidence: pickedItem.title,
+            confidence: 0.7,
+          }))
+          const fired = await evaluateAndFire({
+            commissionId,
+            article: pickedItem,
+            entities: extracted.entities,
+            edges: [...extracted.edges, ...syntheticMentions],
+          })
+          if (fired.length > 0) addActivity('ALERT', `${fired.length} alert${fired.length === 1 ? '' : 's'} fired`)
+        } catch (e) {
+          addActivity('WARN', `alert engine failed: ${(e as Error).message}`)
+        }
+      }
     } catch (extractErr) {
       addActivity('WARN', `graph extraction failed: ${(extractErr as Error).message}`)
+    }
+
+    if (briefId !== null && commissionId) {
+      try {
+        const snapshot = {
+          commission_id: commissionId,
+          article_id: pickedItem.id,
+          article_title: pickedItem.title,
+          article_url: pickedItem.url,
+          editorial: editorial.editorial,
+          trace_id: source.trace?.request_id ?? null,
+          ts: Date.now(),
+        }
+        const upload = await uploadJSON(snapshot)
+        if (upload.hash) {
+          db.query(`UPDATE briefs SET storage_hash = ? WHERE id = ?`).run(upload.hash, briefId)
+        }
+        addActivity('STORAGE', `${upload.reason} hash=${upload.hash.slice(0, 24)}`)
+      } catch (e) {
+        addActivity('WARN', `storage upload failed: ${(e as Error).message}`)
+      }
     }
 
     const finishedAt = Date.now()
@@ -303,6 +388,15 @@ function truncate(s: string, n: number): string {
   return s.length > n ? s.slice(0, n - 1) + '…' : s
 }
 
+function formatBriefMarkdown(item: NewsItem, take: string): string {
+  const published = item.publishedAt ? new Date(item.publishedAt).toISOString() : 'unknown'
+  return `**${item.title}**
+
+${take}
+
+— [${item.source.name}](${item.url}) · ${published}`
+}
+
 function filterByTerms(items: NewsItem[], terms: string[]): NewsItem[] {
   if (!terms.length) return items
   const lower = terms.map((t) => t.toLowerCase())
@@ -310,4 +404,18 @@ function filterByTerms(items: NewsItem[], terms: string[]): NewsItem[] {
     const hay = `${item.title} ${item.summary}`.toLowerCase()
     return lower.some((t) => hay.includes(t))
   })
+}
+
+function mergeAndDedupe(prefer: NewsItem[], fallback: NewsItem[]): NewsItem[] {
+  const seen = new Set<string>()
+  const out: NewsItem[] = []
+  for (const arr of [prefer, fallback]) {
+    for (const item of arr) {
+      const key = item.url || item.id
+      if (seen.has(key)) continue
+      seen.add(key)
+      out.push(item)
+    }
+  }
+  return out
 }

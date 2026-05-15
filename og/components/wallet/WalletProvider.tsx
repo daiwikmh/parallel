@@ -39,6 +39,12 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [balance, setBalance] = useState("--");
   const [connecting, setConnecting] = useState(false);
   const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (account) window.localStorage.setItem("og-wallet-address", account);
+    else window.localStorage.removeItem("og-wallet-address");
+  }, [account]);
   const providerRef = useRef<{
     request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
     on: (event: string, fn: (...args: unknown[]) => void) => void;
@@ -159,14 +165,19 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const switchChain = useCallback(async (target: string) => {
+    if (!target || !target.startsWith("0x")) {
+      handleError(new Error(`switchChain: invalid target chainId "${target}"`));
+      return;
+    }
+    const normalized = target.toLowerCase() as `0x${string}`;
     try {
       const client = await getWalletClient();
       const chainConfig = buildChainConfig(
-        target,
+        normalized,
         process.env.NEXT_PUBLIC_INFURA_API_KEY,
       );
       await client.switchChain({
-        chainId: target as `0x${string}`,
+        chainId: normalized,
         ...(chainConfig && { chainConfiguration: chainConfig }),
       });
     } catch (e) {

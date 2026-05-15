@@ -12,6 +12,7 @@ export interface ExtractedEntity {
   type: EntityKind
   canonical_id: string
   aliases: string[]
+  sentiment?: number
 }
 
 export interface ExtractedEdge {
@@ -102,7 +103,7 @@ ${edgeTypeLines()}
 OUTPUT a single JSON object, no prose, no code fences, this exact shape:
 {
   "entities": [
-    { "name": "Bitcoin", "type": "token", "canonical_id": "token:btc", "aliases": ["BTC"] }
+    { "name": "Bitcoin", "type": "token", "canonical_id": "token:btc", "aliases": ["BTC"], "sentiment": 0.6 }
   ],
   "edges": [
     {
@@ -118,6 +119,7 @@ OUTPUT a single JSON object, no prose, no code fences, this exact shape:
 
 RULES:
 - Entity "type" MUST be exactly one of the entity types above. Skip the entity if no type fits.
+- Entity "sentiment" is a number 0.0 to 1.0 reflecting the article's tone toward THIS entity (0 = very negative, 0.5 = neutral, 1 = very positive). Default 0.5 if unclear.
 - Edge "type" MUST be exactly one of the edge types above. Skip the edge if no type fits.
 - Every edge MUST satisfy the domain → range types stated in the edge type description. If types do not match, SKIP THE EDGE — do not pick a different edge type just to keep it.
 - If the article describes a discrete occurrence (hack, exploit, listing, launch, filing, lawsuit, acquisition, announcement, agreement), CREATE an event entity for it (e.g. "event:curve-exploit-2026", "event:sec-vs-binance-2026") and emit "exploited", "affects", "announced", or "mentions" edges from that event entity.
@@ -151,6 +153,18 @@ Return the extraction JSON now.`
   return { result: validate(data), source: result }
 }
 
+const PRODUCT_DENYLIST = new Set([
+  'cursor', 'claude', 'claude code', 'claude-code', 'aider', 'copilot', 'github copilot',
+  'chatgpt', 'gpt-4', 'gpt-5', 'notion', 'windsurf', 'lovable', 'replit', 'v0',
+  'midjourney', 'stable diffusion', 'sora', 'runway', 'perplexity', 'devin',
+  'figma', 'linear', 'slack', 'discord', 'telegram', 'twitter', 'x',
+  'vscode', 'visual studio code', 'jetbrains', 'intellij',
+])
+
+function isLikelyProduct(name: string): boolean {
+  return PRODUCT_DENYLIST.has(name.toLowerCase().trim())
+}
+
 function validate(data: { entities?: unknown; edges?: unknown }): ExtractionResult {
   const entities: ExtractedEntity[] = []
   const seenIds = new Set<string>()
@@ -160,19 +174,27 @@ function validate(data: { entities?: unknown; edges?: unknown }): ExtractionResu
       const e = raw as Partial<ExtractedEntity>
       if (typeof e.name !== 'string' || !e.name.trim()) continue
       if (typeof e.type !== 'string' || !ENTITY_KINDS.includes(e.type as EntityKind)) continue
+      let resolvedType = e.type as EntityKind
+      if (resolvedType === 'token' && isLikelyProduct(e.name)) {
+        resolvedType = 'topic'
+      }
       const canonical_id =
         typeof e.canonical_id === 'string' && e.canonical_id.includes(':')
-          ? e.canonical_id.toLowerCase().trim()
-          : `${e.type}:${slug(e.name)}`
+          ? (resolvedType === e.type
+              ? e.canonical_id.toLowerCase().trim()
+              : `${resolvedType}:${slug(e.name)}`)
+          : `${resolvedType}:${slug(e.name)}`
       if (seenIds.has(canonical_id)) continue
       seenIds.add(canonical_id)
+      const sentiment = typeof e.sentiment === 'number' && e.sentiment >= 0 && e.sentiment <= 1 ? e.sentiment : 0.5
       entities.push({
         name: e.name.trim(),
-        type: e.type as EntityKind,
+        type: resolvedType,
         canonical_id,
         aliases: Array.isArray(e.aliases)
           ? e.aliases.filter((a): a is string => typeof a === 'string' && a.trim().length > 0).map((a) => a.trim())
           : [],
+        sentiment,
       })
     }
   }

@@ -16,16 +16,37 @@ import { CommissionsList } from "@/components/commission/CommissionsList";
 import { GraphView } from "@/components/graph/GraphView";
 import { ContextPanel } from "@/components/graph/ContextPanel";
 import { Timeline } from "@/components/graph/Timeline";
+import { BriefPanel } from "@/components/dashboard/BriefPanel";
+import { SourcesManager } from "@/components/commission/SourcesManager";
+import { AlertsManager } from "@/components/commission/AlertsManager";
+import { PaywallButton } from "@/components/commission/PaywallButton";
 
 const PANEL_STORAGE_KEY = "dash-panels-v1";
+
+type GraphSize = "sm" | "md" | "lg" | "xl";
 
 interface PanelState {
   left: boolean;
   right: boolean;
   timeline: boolean;
+  graphSize: GraphSize;
+  fullscreen: boolean;
 }
 
-const DEFAULT_PANELS: PanelState = { left: true, right: true, timeline: true };
+const DEFAULT_PANELS: PanelState = {
+  left: true,
+  right: true,
+  timeline: true,
+  graphSize: "md",
+  fullscreen: false,
+};
+
+const GRAPH_HEIGHT: Record<GraphSize, string> = {
+  sm: "h-[360px]",
+  md: "h-[480px]",
+  lg: "h-[680px]",
+  xl: "h-[880px]",
+};
 
 function loadPanelState(): PanelState {
   if (typeof window === "undefined") return DEFAULT_PANELS;
@@ -48,21 +69,35 @@ export default function DashboardPage() {
   const [runError, setRunError] = useState<string | null>(null);
   const [runInfo, setRunInfo] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [paywalled, setPaywalled] = useState(false);
   const [panels, setPanels] = useState<PanelState>(DEFAULT_PANELS);
 
   useEffect(() => {
     setPanels(loadPanelState());
   }, []);
 
-  const togglePanel = useCallback((key: keyof PanelState) => {
-    setPanels((prev) => {
-      const next = { ...prev, [key]: !prev[key] };
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem(PANEL_STORAGE_KEY, JSON.stringify(next));
-      }
-      return next;
-    });
+  const persistPanels = useCallback((next: PanelState) => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(PANEL_STORAGE_KEY, JSON.stringify(next));
+    }
+    return next;
   }, []);
+
+  const togglePanel = useCallback(
+    (key: "left" | "right" | "timeline" | "fullscreen") => {
+      setPanels((prev) => persistPanels({ ...prev, [key]: !prev[key] }));
+    },
+    [persistPanels],
+  );
+
+  const cycleGraphSize = useCallback(() => {
+    setPanels((prev) => {
+      const order: GraphSize[] = ["sm", "md", "lg", "xl"];
+      const idx = order.indexOf(prev.graphSize);
+      const next = order[(idx + 1) % order.length];
+      return persistPanels({ ...prev, graphSize: next });
+    });
+  }, [persistPanels]);
 
   const loadCommissions = useCallback(async (preferSelect?: string) => {
     try {
@@ -148,6 +183,7 @@ export default function DashboardPage() {
     setRunning(true);
     setRunError(null);
     setRunInfo(null);
+    setPaywalled(false);
     try {
       const result = await runCommission(selectedCommissionId);
       if (result.status === "no_coverage") {
@@ -160,16 +196,60 @@ export default function DashboardPage() {
       }
       await loadGraph(selectedCommissionId);
     } catch (e) {
-      setRunError((e as Error).message);
+      const err = e as Error & { status?: number; body?: { access?: { reason?: string } } };
+      if (err.status === 402 || err.body?.access?.reason === "paywall") {
+        setPaywalled(true);
+        setRunError("Free tier exhausted. Pay to unlock.");
+      } else {
+        setRunError(err.message);
+      }
     } finally {
       setRunning(false);
     }
   }, [selectedCommissionId, running, loadGraph]);
 
+  useEffect(() => {
+    setPaywalled(false);
+  }, [selectedCommissionId]);
+
   const selectedCommission = commissions.find((c) => c.id === selectedCommissionId) ?? null;
 
   return (
     <main className="min-h-screen bg-bg-dark text-ink-light">
+      {panels.fullscreen && selectedCommissionId && (
+        <div className="fixed inset-0 z-50 bg-bg-dark flex flex-col">
+          <div className="flex items-center justify-between px-6 py-3 border-b border-ink-light/10 font-mono text-label-sm uppercase tracking-widest">
+            <span className="text-ink-light-muted">
+              ▶ GRAPH · {selectedCommission?.query_text ?? ""} · {graph.nodes.length} nodes · {graph.edges.length} edges
+            </span>
+            <button
+              onClick={() => togglePanel("fullscreen")}
+              className="px-3 py-1 border border-ink-light/15 hover:border-accent-lime/60 hover:text-accent-lime transition-colors"
+            >
+              ▢ exit fullscreen
+            </button>
+          </div>
+          <div className="flex-1">
+            <GraphView
+              graph={graph}
+              selectedNodeId={selectedNode?.id ?? null}
+              selectedEdgeId={selectedEdge?.id ?? null}
+              onNodeClick={(n) => {
+                setSelectedNode(n);
+                setSelectedEdge(null);
+              }}
+              onEdgeClick={(e) => {
+                setSelectedEdge(e);
+                setSelectedNode(null);
+              }}
+              onBackgroundClick={() => {
+                setSelectedNode(null);
+                setSelectedEdge(null);
+              }}
+            />
+          </div>
+        </div>
+      )}
       <div className="pt-8 pb-24 px-6 md:px-8 max-w-7xl">
         <div className="mb-2">
           <span className="font-mono text-label-sm uppercase tracking-widest text-ink-light-muted">
@@ -232,6 +312,14 @@ export default function DashboardPage() {
                           ▶ {runInfo}
                         </div>
                       )}
+                      {paywalled && selectedCommissionId && (
+                        <PaywallButton
+                          commissionId={selectedCommissionId}
+                          onPaid={() => {
+                            setRunInfo("Payment submitted — retry RUN NOW in ~10s after the listener catches the event");
+                          }}
+                        />
+                      )}
                     </div>
                   )}
                 </div>
@@ -244,15 +332,31 @@ export default function DashboardPage() {
               )}
 
               <div className={graphColSpanClass(panels)}>
-                <div className="font-mono text-label-sm uppercase tracking-widest text-ink-light-muted mb-3 flex items-center justify-between">
+                <div className="font-mono text-label-sm uppercase tracking-widest text-ink-light-muted mb-3 flex items-center justify-between gap-3">
                   <span>▶ GRAPH</span>
-                  {selectedCommission && (
-                    <span className="normal-case tracking-normal text-ink-light-muted">
-                      {graph.nodes.length} nodes · {graph.edges.length} edges
-                    </span>
-                  )}
+                  <div className="flex items-center gap-3 normal-case tracking-normal">
+                    {selectedCommission && (
+                      <span className="text-ink-light-muted">
+                        {graph.nodes.length} nodes · {graph.edges.length} edges
+                      </span>
+                    )}
+                    <button
+                      onClick={cycleGraphSize}
+                      className="px-2 py-0.5 border border-ink-light/15 hover:border-accent-lime/60 hover:text-accent-lime transition-colors uppercase tracking-widest"
+                      title="Cycle graph height (sm → md → lg → xl)"
+                    >
+                      size: {panels.graphSize}
+                    </button>
+                    <button
+                      onClick={() => togglePanel("fullscreen")}
+                      className="px-2 py-0.5 border border-ink-light/15 hover:border-accent-lime/60 hover:text-accent-lime transition-colors uppercase tracking-widest"
+                      title={panels.fullscreen ? "Exit fullscreen" : "Fullscreen graph"}
+                    >
+                      {panels.fullscreen ? "▢ exit" : "▣ full"}
+                    </button>
+                  </div>
                 </div>
-                <div className="border border-ink-light/10 bg-bg-dark-2/30 h-[480px]">
+                <div className={`border border-ink-light/10 bg-bg-dark-2/30 ${GRAPH_HEIGHT[panels.graphSize]} transition-[height] duration-200`}>
                   {selectedCommissionId ? (
                     <GraphView
                       graph={graph}
@@ -309,6 +413,16 @@ export default function DashboardPage() {
                   onExpand={() => togglePanel("right")}
                 />
               )}
+            </div>
+
+            <div className="mt-6 mb-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2 space-y-6">
+                <BriefPanel commissionId={selectedCommissionId} />
+                <AlertsManager commissionId={selectedCommissionId} />
+              </div>
+              <div className="lg:col-span-1">
+                <SourcesManager commissionId={selectedCommissionId} />
+              </div>
             </div>
 
             <div className="mt-2 mb-3 flex items-center gap-3">

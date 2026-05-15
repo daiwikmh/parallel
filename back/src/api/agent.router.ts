@@ -2,8 +2,21 @@ import { Router, Request, Response } from 'express'
 import { runAgentOnce, getLastResult, isRunning } from '../agent/run'
 import { getActivity } from '../agent/activity'
 import { isAvailable as inferenceAvailable, DEFAULT_MODEL } from '../og/compute'
+import { listAuditFeed, auditCounts, totalInferenceCostWei } from '../db/repo'
+import { FLAGS } from '../lib/flags'
 
 const router: Router = Router()
+
+router.get('/audit', (req: Request, res: Response) => {
+  const limit = Math.max(1, Math.min(500, Number(req.query.limit) || 100))
+  res.json({
+    events: listAuditFeed(limit),
+    counts: auditCounts(),
+    totals: { inference_cost_wei: totalInferenceCostWei() },
+    flags: FLAGS,
+    inference: { available: inferenceAvailable(), model: DEFAULT_MODEL },
+  })
+})
 
 router.get('/status', (_req, res) => {
   res.json({

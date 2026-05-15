@@ -48,6 +48,7 @@ export function buildChainConfig(targetChainId: string, infuraApiKey?: string) {
   }
   if (!rpc) return null;
   return {
+    chainId: info.id.toLowerCase(),
     chainName: info.name,
     nativeCurrency: info.nativeCurrency,
     rpcUrls: [rpc],

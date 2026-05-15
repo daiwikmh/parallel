@@ -5,6 +5,7 @@ import { createContext, useCallback, useContext, useEffect, useState } from "rea
 import { Logo } from "../ui/Logo";
 import { AuthButton } from "../ui/AuthButton";
 import { ConnectWallet } from "../wallet/ConnectWallet";
+import { TelegramSection } from "../wallet/TelegramSection";
 import { fetchNewsStatus } from "@/lib/api";
 
 interface NavItem {
@@ -16,7 +17,7 @@ interface NavItem {
 const NAV: NavItem[] = [
   { href: "/dashboard",            label: "Dashboard",  letter: "D" },
   { href: "/sources",              label: "Sources",    letter: "S" },
-  { href: "/agent",                label: "Agent",      letter: "A" },
+  { href: "/agent",                label: "Audit Log",  letter: "L" },
 ];
 
 function activeHref(pathname: string): string | null {
@@ -150,7 +151,7 @@ export function Sidebar() {
     <div className="flex h-full flex-col bg-bg-dark text-ink-light">
       <div className={`flex items-center gap-3 px-4 py-3 border-b border-ink-light/10 ${collapsed ? "justify-center" : "justify-between"}`}>
         {!collapsed && (
-          <Link href="/" onClick={() => setMobileOpen(false)}>
+          <Link href="/dashboard" onClick={() => setMobileOpen(false)}>
             <Logo />
           </Link>
         )}
@@ -161,6 +162,7 @@ export function Sidebar() {
 
       {navList}
       <ConnectWallet collapsed={collapsed} />
+      {!collapsed && <TelegramSection />}
       {statusPill}
 
       <button

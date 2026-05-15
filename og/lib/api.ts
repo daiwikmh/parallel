@@ -198,14 +198,33 @@ export interface EntityDetail {
   edges: Array<GraphEdge & { properties: Record<string, unknown> }>;
 }
 
+function getWalletHeader(): Record<string, string> {
+  if (typeof window === "undefined") return {};
+  try {
+    const w = window.localStorage.getItem("og-wallet-address");
+    return w ? { "X-Wallet-Address": w } : {};
+  } catch {
+    return {};
+  }
+}
+
 async function jsonFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     cache: "no-store",
-    headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
+    headers: {
+      "Content-Type": "application/json",
+      ...getWalletHeader(),
+      ...(init?.headers ?? {}),
+    },
     ...init,
   });
   const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error((body as { error?: string }).error ?? `${path} failed: ${res.status}`);
+  if (!res.ok) {
+    const err = new Error((body as { error?: string }).error ?? `${path} failed: ${res.status}`);
+    (err as Error & { status?: number; body?: unknown }).status = res.status;
+    (err as Error & { status?: number; body?: unknown }).body = body;
+    throw err;
+  }
   return body as T;
 }
 
@@ -249,4 +268,185 @@ export async function fetchGraph(commission: string, since?: number): Promise<Gr
 
 export async function fetchEntity(id: string): Promise<EntityDetail> {
   return jsonFetch(`/api/graph/entities/${encodeURIComponent(id)}`);
+}
+
+export interface Brief {
+  id: number;
+  commission_id: string;
+  article_id: string | null;
+  body_md: string;
+  trace_id: string | null;
+  created_at: number;
+}
+
+export async function fetchBriefs(commissionId: string, limit = 20): Promise<{ briefs: Brief[] }> {
+  return jsonFetch(`/api/commissions/${commissionId}/briefs?limit=${limit}`);
+}
+
+export interface DigestPayload {
+  commission_id: string;
+  query_text: string;
+  since: number;
+  brief_count: number;
+  briefs: Brief[];
+  new_entities: { id: string; type: string; name: string }[];
+  new_edges_count: number;
+  top_sources: { name: string; count: number }[];
+  markdown: string;
+}
+
+export async function fetchDigest(commissionId: string, sinceMs?: number): Promise<DigestPayload> {
+  const qs = sinceMs ? `?since=${sinceMs}` : "";
+  return jsonFetch(`/api/commissions/${commissionId}/digest${qs}`);
+}
+
+export type SourceKind = "rss" | "youtube";
+
+export interface Source {
+  id: number;
+  commission_id: string;
+  kind: SourceKind;
+  url: string;
+  label: string | null;
+  preference: number;
+  active: number;
+  last_fetched_at: number | null;
+  last_item_count: number | null;
+  last_error: string | null;
+  created_at: number;
+}
+
+export async function listSources(commissionId: string): Promise<{ sources: Source[] }> {
+  return jsonFetch(`/api/sources/${commissionId}`);
+}
+
+export async function createSource(commissionId: string, kind: SourceKind, url: string, label?: string): Promise<{ source: Source }> {
+  return jsonFetch(`/api/sources/${commissionId}`, {
+    method: "POST",
+    body: JSON.stringify({ kind, url, label }),
+  });
+}
+
+export async function patchSource(commissionId: string, sourceId: number, patch: Partial<{ active: number; preference: number; label: string | null }>): Promise<{ source: Source }> {
+  return jsonFetch(`/api/sources/${commissionId}/${sourceId}`, {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
+}
+
+export async function deleteSource(commissionId: string, sourceId: number): Promise<{ ok: true }> {
+  return jsonFetch(`/api/sources/${commissionId}/${sourceId}`, { method: "DELETE" });
+}
+
+export interface TelegramChannel {
+  id: number;
+  owner_id: string;
+  kind: "telegram";
+  target: string;
+  active: number;
+  created_at: number;
+}
+
+export async function getTelegramChannel(): Promise<{ channel: TelegramChannel | null }> {
+  return jsonFetch(`/api/integrations/telegram`);
+}
+
+export async function saveTelegramChannel(chatId: string): Promise<{ channel: TelegramChannel }> {
+  return jsonFetch(`/api/integrations/telegram`, {
+    method: "POST",
+    body: JSON.stringify({ chat_id: chatId }),
+  });
+}
+
+export async function testTelegramChannel(): Promise<{ ok: boolean; reason?: string; telegram?: unknown }> {
+  return jsonFetch(`/api/integrations/telegram/test`, { method: "POST" });
+}
+
+export async function deleteTelegramChannel(): Promise<{ ok: true }> {
+  return jsonFetch(`/api/integrations/telegram`, { method: "DELETE" });
+}
+
+export type AlertKind = "entity_mentioned" | "edge_type_added" | "keyword_in_evidence" | "sentiment_drop";
+
+export interface AlertRule {
+  id: number;
+  commission_id: string;
+  kind: AlertKind;
+  config: string;
+  channel_ids: string;
+  active: number;
+  cooldown_seconds: number;
+  last_fired_at: number | null;
+  created_at: number;
+}
+
+export interface AlertEvent {
+  id: number;
+  rule_id: number;
+  payload: string;
+  delivered_to: string | null;
+  created_at: number;
+  kind?: AlertKind;
+}
+
+export async function listAlertRules(commissionId: string): Promise<{ rules: AlertRule[] }> {
+  return jsonFetch(`/api/alerts/${commissionId}`);
+}
+
+export async function createAlertRule(commissionId: string, kind: AlertKind, config: Record<string, unknown>, cooldownSeconds?: number): Promise<{ rule: AlertRule }> {
+  return jsonFetch(`/api/alerts/${commissionId}`, {
+    method: "POST",
+    body: JSON.stringify({ kind, config, cooldown_seconds: cooldownSeconds }),
+  });
+}
+
+export async function patchAlertRule(commissionId: string, ruleId: number, patch: Partial<{ active: number; cooldown_seconds: number; config: Record<string, unknown> }>): Promise<{ rule: AlertRule }> {
+  return jsonFetch(`/api/alerts/${commissionId}/${ruleId}`, {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
+}
+
+export async function deleteAlertRule(commissionId: string, ruleId: number): Promise<{ ok: true }> {
+  return jsonFetch(`/api/alerts/${commissionId}/${ruleId}`, { method: "DELETE" });
+}
+
+export async function listAlertEvents(commissionId: string, limit = 30): Promise<{ events: AlertEvent[] }> {
+  return jsonFetch(`/api/alerts/${commissionId}/events?limit=${limit}`);
+}
+
+export interface SevenDayBrief {
+  commission_id: string;
+  query_text: string;
+  since: number;
+  brief_count: number;
+  new_entities?: number;
+  new_edges?: number;
+  summary: string;
+  trace_id?: string | null;
+}
+
+export async function fetchSevenDayBrief(commissionId: string): Promise<SevenDayBrief> {
+  return jsonFetch(`/api/commissions/${commissionId}/brief-7d`);
+}
+
+export interface AuditEvent {
+  ts: number;
+  kind: string;
+  related_id: string | null;
+  summary: string | null;
+  trace_id: string | null;
+  commission_id: string | null;
+}
+
+export interface AuditFeed {
+  events: AuditEvent[];
+  counts: Record<string, number>;
+  totals: { inference_cost_wei: string };
+  flags: { PAYMENT_ENABLED: boolean; OG_STORAGE_ENABLED: boolean; OG_CHAIN_ENABLED: boolean };
+  inference: { available: boolean; model: string };
+}
+
+export async function fetchAuditFeed(limit = 100): Promise<AuditFeed> {
+  return jsonFetch(`/api/agent/audit?limit=${limit}`);
 }

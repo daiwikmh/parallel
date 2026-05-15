@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import type { GraphPayload, GraphNode, GraphEdge, EntityKind } from "@/lib/api";
 
@@ -46,6 +46,7 @@ export function GraphView({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const graphRef = useRef<any>(null);
   const [size, setSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
+  const nodeCacheRef = useRef<Map<string, ForceNode>>(new Map());
 
   useEffect(() => {
     const el = containerRef.current;
@@ -61,7 +62,24 @@ export function GraphView({
   }, []);
 
   const data = useMemo(() => {
-    const nodes: ForceNode[] = graph.nodes.map((n) => ({ ...n }));
+    const cache = nodeCacheRef.current;
+    const seen = new Set<string>();
+    const nodes: ForceNode[] = graph.nodes.map((n) => {
+      seen.add(n.id);
+      const existing = cache.get(n.id);
+      if (existing) {
+        existing.label = n.label;
+        existing.type = n.type;
+        existing.edge_count = n.edge_count;
+        return existing;
+      }
+      const fresh: ForceNode = { ...n };
+      cache.set(n.id, fresh);
+      return fresh;
+    });
+    for (const id of cache.keys()) {
+      if (!seen.has(id)) cache.delete(id);
+    }
     const links: ForceLink[] = graph.edges.map((e) => ({
       source: e.src_id,
       target: e.dst_id,
@@ -70,16 +88,31 @@ export function GraphView({
     return { nodes, links };
   }, [graph]);
 
+  const lastFitCountRef = useRef(0);
   useEffect(() => {
-    if (graphRef.current && data.nodes.length > 0) {
-      const t = setTimeout(() => {
-        try {
-          graphRef.current?.zoomToFit(400, 60);
-        } catch {
-          /* ignore */
-        }
-      }, 200);
-      return () => clearTimeout(t);
+    if (!graphRef.current || data.nodes.length === 0) return;
+    if (data.nodes.length === lastFitCountRef.current) return;
+    lastFitCountRef.current = data.nodes.length;
+    const t = setTimeout(() => {
+      try {
+        graphRef.current?.zoomToFit(600, 80);
+      } catch {
+        /* ignore */
+      }
+    }, 600);
+    return () => clearTimeout(t);
+  }, [data.nodes.length]);
+
+  useEffect(() => {
+    if (!graphRef.current) return;
+    try {
+      const charge = graphRef.current.d3Force?.("charge");
+      if (charge && typeof charge.strength === "function") charge.strength(-180);
+      const link = graphRef.current.d3Force?.("link");
+      if (link && typeof link.distance === "function") link.distance(70);
+      graphRef.current.d3ReheatSimulation?.();
+    } catch {
+      /* ignore */
     }
   }, [data.nodes.length]);
 
@@ -155,7 +188,10 @@ export function GraphView({
           onEdgeClick((l as unknown as ForceLink).edge);
         }}
         onBackgroundClick={onBackgroundClick}
-        cooldownTicks={120}
+        cooldownTicks={300}
+        d3AlphaDecay={0.012}
+        d3VelocityDecay={0.35}
+        warmupTicks={20}
       />
     </div>
   );

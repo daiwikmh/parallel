@@ -1,0 +1,34 @@
+node_modules/
+.pnp
+.pnp.js
+
+# env
+.env
+.env.local
+.env.*.local
+
+# bun / node
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+
+# next.js
+.next/
+out/
+build/
+dist/
+next-env.d.ts
+
+# data
+data/
+*.db
+*.db-shm
+*.db-wal
+
+# editor / os
+.vscode/
+.idea/
+*.swp
+Thumbs.db

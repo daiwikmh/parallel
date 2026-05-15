@@ -98,3 +98,83 @@ CREATE TABLE IF NOT EXISTS commission_articles (
 );
 
 CREATE INDEX IF NOT EXISTS idx_ca_commission ON commission_articles(commission_id, processed_at DESC);
+
+CREATE TABLE IF NOT EXISTS briefs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  commission_id TEXT NOT NULL REFERENCES commissions(id),
+  article_id TEXT REFERENCES articles(id),
+  body_md TEXT NOT NULL,
+  trace_id TEXT,
+  created_at INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_briefs_commission ON briefs(commission_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS entity_aliases (
+  alias_lower TEXT PRIMARY KEY,
+  entity_id TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_entity_aliases_entity ON entity_aliases(entity_id);
+
+CREATE TABLE IF NOT EXISTS sources (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  commission_id TEXT NOT NULL REFERENCES commissions(id),
+  kind TEXT NOT NULL,
+  url TEXT NOT NULL,
+  label TEXT,
+  preference INTEGER NOT NULL DEFAULT 0,
+  active INTEGER NOT NULL DEFAULT 1,
+  last_fetched_at INTEGER,
+  last_item_count INTEGER,
+  last_error TEXT,
+  created_at INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_sources_commission ON sources(commission_id, active);
+
+CREATE TABLE IF NOT EXISTS delivery_channels (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  owner_id TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  target TEXT NOT NULL,
+  config TEXT NOT NULL DEFAULT '{}',
+  active INTEGER NOT NULL DEFAULT 1,
+  created_at INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_channels_owner ON delivery_channels(owner_id, active);
+
+CREATE TABLE IF NOT EXISTS alert_rules (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  commission_id TEXT NOT NULL REFERENCES commissions(id),
+  kind TEXT NOT NULL,
+  config TEXT NOT NULL DEFAULT '{}',
+  channel_ids TEXT NOT NULL DEFAULT '[]',
+  active INTEGER NOT NULL DEFAULT 1,
+  cooldown_seconds INTEGER NOT NULL DEFAULT 3600,
+  last_fired_at INTEGER,
+  created_at INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_alerts_commission ON alert_rules(commission_id, active);
+
+CREATE TABLE IF NOT EXISTS alert_events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  rule_id INTEGER NOT NULL REFERENCES alert_rules(id),
+  payload TEXT NOT NULL,
+  delivered_to TEXT,
+  created_at INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_alert_events_rule ON alert_events(rule_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS wallet_access (
+  wallet_lower TEXT PRIMARY KEY,
+  free_uses_consumed INTEGER NOT NULL DEFAULT 0,
+  paid_until INTEGER,
+  paid_commission_ids TEXT NOT NULL DEFAULT '[]',
+  last_payment_tx TEXT,
+  updated_at INTEGER NOT NULL
+);
