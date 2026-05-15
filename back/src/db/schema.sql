@@ -80,3 +80,21 @@ CREATE TABLE IF NOT EXISTS traces (
 
 CREATE INDEX IF NOT EXISTS idx_traces_request ON traces(request_id);
 CREATE INDEX IF NOT EXISTS idx_traces_commission ON traces(commission_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS article_entities (
+  article_id TEXT NOT NULL REFERENCES articles(id),
+  entity_id TEXT NOT NULL REFERENCES entities(id),
+  PRIMARY KEY (article_id, entity_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_ae_article ON article_entities(article_id);
+CREATE INDEX IF NOT EXISTS idx_ae_entity ON article_entities(entity_id);
+
+CREATE TABLE IF NOT EXISTS commission_articles (
+  commission_id TEXT NOT NULL REFERENCES commissions(id),
+  article_id TEXT NOT NULL REFERENCES articles(id),
+  processed_at INTEGER NOT NULL,
+  PRIMARY KEY (commission_id, article_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_ca_commission ON commission_articles(commission_id, processed_at DESC);

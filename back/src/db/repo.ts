@@ -25,12 +25,17 @@ export function upsertEntity(input: UpsertEntityInput): EntityRow {
   const existing = db.query<EntityRow, [string]>(`SELECT * FROM entities WHERE id = ?`).get(input.canonical_id)
   if (existing) {
     const mergedAliases = mergeAliases(JSON.parse(existing.aliases) as string[], input.aliases ?? [], input.name, existing.canonical_name)
-    db.query(`UPDATE entities SET aliases = ?, updated_at = ? WHERE id = ?`).run(
+    const existingAttrs = (() => {
+      try { return JSON.parse(existing.attributes) as Record<string, unknown> } catch { return {} }
+    })()
+    const mergedAttrs = { ...existingAttrs, ...(input.attributes ?? {}) }
+    db.query(`UPDATE entities SET aliases = ?, attributes = ?, updated_at = ? WHERE id = ?`).run(
       JSON.stringify(mergedAliases),
+      JSON.stringify(mergedAttrs),
       t,
       input.canonical_id,
     )
-    return { ...existing, aliases: JSON.stringify(mergedAliases), updated_at: t }
+    return { ...existing, aliases: JSON.stringify(mergedAliases), attributes: JSON.stringify(mergedAttrs), updated_at: t }
   }
   const aliases = input.aliases ?? []
   db.query(
@@ -113,6 +118,18 @@ export function upsertArticle(item: NewsItem): string {
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(id, item.url, item.title, item.summary, item.source.kind, item.source.name, publishedAt, now())
   return id
+}
+
+export function linkArticleEntity(article_id: string, entity_id: string): void {
+  db.query(`INSERT OR IGNORE INTO article_entities (article_id, entity_id) VALUES (?, ?)`).run(article_id, entity_id)
+}
+
+export function linkCommissionArticle(commission_id: string, article_id: string): void {
+  db.query(`INSERT OR REPLACE INTO commission_articles (commission_id, article_id, processed_at) VALUES (?, ?, ?)`).run(
+    commission_id,
+    article_id,
+    now(),
+  )
 }
 
 export interface InsertTraceInput {
@@ -225,6 +242,15 @@ export function getGraphForCommission(commission_id: string, since?: number): Gr
     nodeIds.add(e.dst_id)
   }
   if (commission?.entity_id) nodeIds.add(commission.entity_id)
+
+  const mentioned = db
+    .query<{ entity_id: string }, [string]>(
+      `SELECT DISTINCT ae.entity_id FROM article_entities ae
+       JOIN commission_articles ca ON ca.article_id = ae.article_id
+       WHERE ca.commission_id = ?`,
+    )
+    .all(commission_id)
+  for (const m of mentioned) nodeIds.add(m.entity_id)
 
   if (nodeIds.size === 0) return { nodes: [], edges: [] }
 

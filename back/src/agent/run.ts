@@ -1,9 +1,20 @@
 import type { NewsItem, EditorialResult } from '../lib/types'
 import { getCachedNews } from '../worker/cache'
+import { searchNewsForEntity } from '../worker/entitySearch'
 import { generateEditorial } from './editorial'
 import { extractGraph } from './extract'
 import { addActivity } from './activity'
-import { upsertArticle, upsertEntity, insertEdge, insertTrace, getCommission, getEntity } from '../db/repo'
+import {
+  upsertArticle,
+  upsertEntity,
+  insertEdge,
+  insertTrace,
+  getCommission,
+  getEntity,
+  linkArticleEntity,
+  linkCommissionArticle,
+} from '../db/repo'
+import { refreshTokenPrice } from '../worker/priceData'
 
 export interface AgentRunResult {
   pickedItem: NewsItem
@@ -22,26 +33,129 @@ export interface RunOptions {
   pickedItem?: NewsItem
 }
 
+export interface BatchRunResult {
+  commissionId: string
+  processed: number
+  totalEntities: number
+  totalEdges: number
+  durationMs: number
+  errors: string[]
+  status: 'ok' | 'no_coverage'
+  message?: string
+  source: 'cache' | 'targeted' | 'none'
+}
+
 let lastResult: AgentRunResult | null = null
-let inflight: Promise<AgentRunResult> | null = null
+let runningPromise: Promise<unknown> | null = null
 
 export function isRunning(): boolean {
-  return inflight !== null
+  return runningPromise !== null
 }
 
 export function getLastResult(): AgentRunResult | null {
   return lastResult
 }
 
-export async function runAgentOnce(opts: RunOptions = {}): Promise<AgentRunResult> {
-  if (inflight) return inflight
-  inflight = runInternal(opts).finally(() => {
-    inflight = null
-  })
-  return inflight
+async function withLock<T>(fn: () => Promise<T>): Promise<T> {
+  if (runningPromise) throw new Error('agent run already in progress')
+  const p = fn()
+  runningPromise = p
+  try {
+    return await p
+  } finally {
+    runningPromise = null
+  }
 }
 
-async function runInternal(opts: RunOptions): Promise<AgentRunResult> {
+export async function runAgentOnce(opts: RunOptions = {}): Promise<AgentRunResult> {
+  return withLock(() => runOnce(opts))
+}
+
+export async function runCommissionBatch(commissionId: string, limit = 3): Promise<BatchRunResult> {
+  return withLock(async () => {
+    const startedAt = Date.now()
+    const commission = getCommission(commissionId)
+    if (!commission || !commission.entity_id) throw new Error(`commission ${commissionId} not found or has no entity`)
+    const entity = getEntity(commission.entity_id)
+    if (!entity) throw new Error(`entity ${commission.entity_id} not found`)
+    const aliases = JSON.parse(entity.aliases) as string[]
+    const terms = [entity.canonical_name, ...aliases].filter((t) => t.length >= 2)
+
+    if (entity.type === 'token' || entity.type === 'protocol') {
+      try {
+        const existingAttrs = JSON.parse(entity.attributes) as Record<string, unknown>
+        const existingPrice = existingAttrs.price as { coingecko_id?: string } | undefined
+        const price = await refreshTokenPrice(entity.canonical_name, existingPrice?.coingecko_id)
+        if (price) upsertEntity({ canonical_id: entity.id, type: entity.type, name: entity.canonical_name, attributes: { price } })
+      } catch (e) {
+        addActivity('WARN', `price refresh failed: ${(e as Error).message}`)
+      }
+    }
+
+    addActivity('SCAN', `cache filter for ${terms.slice(0, 4).join(', ')}`)
+    const news = await getCachedNews()
+    let filtered = filterByTerms(news.ranked, terms).slice(0, limit)
+    let source: 'cache' | 'targeted' | 'none' = filtered.length ? 'cache' : 'none'
+
+    if (filtered.length === 0) {
+      addActivity('SEARCH', `cache miss, searching Google News for ${entity.canonical_name}`)
+      try {
+        const fresh = await searchNewsForEntity(entity.canonical_name, aliases, Math.max(limit * 2, 6))
+        const freshFiltered = filterByTerms(fresh, terms).slice(0, limit)
+        if (freshFiltered.length > 0) {
+          filtered = freshFiltered
+          source = 'targeted'
+        }
+      } catch (e) {
+        addActivity('WARN', `targeted search failed: ${(e as Error).message}`)
+      }
+    }
+
+    if (filtered.length === 0) {
+      addActivity('NOCOV', `no coverage found for ${entity.canonical_name}`)
+      return {
+        commissionId,
+        processed: 0,
+        totalEntities: 0,
+        totalEdges: 0,
+        durationMs: Date.now() - startedAt,
+        errors: [],
+        status: 'no_coverage',
+        message: `No current news coverage found for ${entity.canonical_name}. The agent will check again on the next autonomous run.`,
+        source: 'none',
+      }
+    }
+
+    addActivity('BATCH', `processing ${filtered.length} article${filtered.length === 1 ? '' : 's'} (source: ${source})`)
+
+    const errors: string[] = []
+    let totalEntities = 0
+    let totalEdges = 0
+    let processed = 0
+    for (const item of filtered) {
+      try {
+        const r = await runOnce({ commissionId, pickedItem: item })
+        totalEntities += r.graph.entities
+        totalEdges += r.graph.edges
+        processed++
+      } catch (e) {
+        errors.push((e as Error).message)
+      }
+    }
+    return {
+      commissionId,
+      processed,
+      totalEntities,
+      totalEdges,
+      durationMs: Date.now() - startedAt,
+      errors,
+      status: 'ok',
+      source,
+    }
+  })
+}
+
+async function runOnce(opts: RunOptions): Promise<AgentRunResult> {
   const startedAt = Date.now()
   const commissionId = opts.commissionId
 
@@ -49,7 +163,7 @@ async function runInternal(opts: RunOptions): Promise<AgentRunResult> {
     let pickedItem: NewsItem
     if (opts.pickedItem) {
       pickedItem = opts.pickedItem
-      addActivity('PICK', `[${pickedItem.source.name}] ${truncate(pickedItem.title, 90)} (override)`)
+      addActivity('PICK', `[${pickedItem.source.name}] ${truncate(pickedItem.title, 90)}`)
     } else if (commissionId) {
       const commission = getCommission(commissionId)
       if (!commission || !commission.entity_id) throw new Error(`commission ${commissionId} not found or has no entity`)
@@ -72,6 +186,7 @@ async function runInternal(opts: RunOptions): Promise<AgentRunResult> {
     }
 
     upsertArticle(pickedItem)
+    if (commissionId) linkCommissionArticle(commissionId, pickedItem.id)
 
     addActivity('WRITE', 'calling 0G Compute for editorial')
     const { editorial, source } = await generateEditorial(pickedItem)
@@ -90,6 +205,7 @@ async function runInternal(opts: RunOptions): Promise<AgentRunResult> {
           name: ent.name,
           aliases: ent.aliases,
         })
+        linkArticleEntity(pickedItem.id, ent.canonical_id)
       }
 
       const observedAt = pickedItem.publishedAt ? Date.parse(pickedItem.publishedAt) : Date.now()
@@ -107,7 +223,52 @@ async function runInternal(opts: RunOptions): Promise<AgentRunResult> {
           commission_id: commissionId ?? null,
         })
       }
-      graphCounts = { entities: extracted.entities.length, edges: extracted.edges.length }
+
+      const articleEventId = `event:article-${pickedItem.id}`
+      const titleLabel = truncate(pickedItem.title, 60)
+      upsertEntity({
+        canonical_id: articleEventId,
+        type: 'event',
+        name: titleLabel,
+        aliases: [],
+        attributes: {
+          full_title: pickedItem.title,
+          url: pickedItem.url,
+          source: pickedItem.source.name,
+          source_kind: pickedItem.source.kind,
+          published_at: pickedItem.publishedAt,
+          article_id: pickedItem.id,
+        },
+      })
+      linkArticleEntity(pickedItem.id, articleEventId)
+
+      let mentionsAdded = 0
+      const linkTargets = new Set<string>()
+      for (const ent of extracted.entities) linkTargets.add(ent.canonical_id)
+      if (commissionId) {
+        const c = getCommission(commissionId)
+        if (c?.entity_id) linkTargets.add(c.entity_id)
+      }
+      for (const targetId of linkTargets) {
+        insertEdge({
+          src_id: articleEventId,
+          dst_id: targetId,
+          type: 'mentions',
+          observed_at: observedAt,
+          properties: {},
+          evidence: pickedItem.title,
+          article_id: pickedItem.id,
+          trace_id: extractSource.trace?.request_id ?? null,
+          confidence: 0.7,
+          commission_id: commissionId ?? null,
+        })
+        mentionsAdded++
+      }
+
+      graphCounts = {
+        entities: extracted.entities.length + 1,
+        edges: extracted.edges.length + mentionsAdded,
+      }
     } catch (extractErr) {
       addActivity('WARN', `graph extraction failed: ${(extractErr as Error).message}`)
     }
