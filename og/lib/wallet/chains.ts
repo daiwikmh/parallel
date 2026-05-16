@@ -10,12 +10,12 @@ export interface ChainInfo {
 }
 
 export const OG_GALILEO: ChainInfo = {
-  id: "0x40d9",
-  decimalId: 16601,
+  id: "0x40da",
+  decimalId: 16602,
   name: "0G Galileo Testnet",
   shortName: "0G",
   rpcUrl: "https://evmrpc-testnet.0g.ai",
-  explorerUrl: "https://chainscan-galileo.0g.ai",
+  explorerUrl: "https://explorer.0g.ai/testnet",
   nativeCurrency: { name: "0G", symbol: "OG", decimals: 18 },
   isDefault: true,
 };

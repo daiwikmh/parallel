@@ -4,14 +4,14 @@ import { recordPayment } from '../payment/access'
 import paymentAbi from './payment-abi.json' with { type: 'json' }
 
 export const galileoTestnet = defineChain({
-  id: 16601,
+  id: 16602,
   name: '0G Galileo Testnet',
   nativeCurrency: { name: '0G', symbol: 'OG', decimals: 18 },
   rpcUrls: {
     default: { http: ['https://evmrpc-testnet.0g.ai'] },
   },
   blockExplorers: {
-    default: { name: 'Chainscan', url: 'https://chainscan-galileo.0g.ai' },
+    default: { name: 'Explorer', url: 'https://explorer.0g.ai/testnet' },
   },
 })
 

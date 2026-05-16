@@ -94,7 +94,7 @@ End-to-end: **commission a topic → classify the entity → fetch news from cac
 
 - **Status:** LIVE, gated by `OG_STORAGE_ENABLED` env flag and a funded private key.
 - **SDK**: `@0gfoundation/0g-storage-ts-sdk@1.2.9` with `ethers@6.16.0`.
-- **Network**: 0G Galileo testnet (chain ID 16601).
+- **Network**: 0G Galileo testnet (chain ID 16602).
 - **Indexer**: `https://indexer-storage-testnet-turbo.0g.ai`
 - **Flow contract**: `0x22e03a6a89b950f1c82ec5e74f8eca321a105296`
 - **RPC**: `https://evmrpc-testnet.0g.ai`
@@ -189,7 +189,7 @@ End-to-end: **commission a topic → classify the entity → fetch news from cac
   paywall          :  2 free runs per wallet, then pay() on 0G chain
 ```
 
-### Deployed contracts (0G Galileo testnet, chain id 16601)
+### Deployed contracts (0G Galileo testnet, chain id 16602)
 
 ```
   Payment contract :  0x2a8142Db4C3b90333339A6E25b225e808098BDB0

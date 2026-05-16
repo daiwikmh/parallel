@@ -20,7 +20,7 @@ export async function payForCommission(commissionId: string, account: `0x${strin
   const wallet = createWalletClient({
     account,
     chain: {
-      id: 16601,
+      id: OG_GALILEO.decimalId,
       name: OG_GALILEO.name,
       nativeCurrency: OG_GALILEO.nativeCurrency,
       rpcUrls: { default: { http: [OG_GALILEO.rpcUrl] } },

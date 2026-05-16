@@ -14,7 +14,7 @@ https://remix.ethereum.org
 ## 4. Add Galileo testnet to MetaMask
 - Network Name: `0G Galileo Testnet`
 - RPC URL: `https://evmrpc-testnet.0g.ai`
-- Chain ID: `16601`
+- Chain ID: `16602`
 - Currency Symbol: `OG`
 - Block Explorer: `https://chainscan-galileo.0g.ai`
 
@@ -42,7 +42,7 @@ After deployment, paste the following (the backend listener uses these to know w
 OG_PAYMENT_CONTRACT=0xYourDeployedAddress
 OG_PAYMENT_EVENT=Paid
 OG_CHAIN_RPC=https://evmrpc-testnet.0g.ai
-OG_CHAIN_ID=16601
+OG_CHAIN_ID=16602
 ```
 
 The event ABI fragment the listener watches:
