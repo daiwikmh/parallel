@@ -29,7 +29,7 @@ function Topbar() {
 
 function Content({ children }: { children: React.ReactNode }) {
   const { collapsed } = useSidebar();
-  const padLeft = collapsed ? "md:pl-16" : "md:pl-56";
+  const padLeft = collapsed ? "md:pl-14" : "md:pl-60";
   return (
     <div className={`min-h-screen ${padLeft} transition-[padding] duration-200`}>
       <Topbar />

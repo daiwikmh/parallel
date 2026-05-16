@@ -3,11 +3,12 @@ import { FLAGS, PAYMENT_CONFIG } from '../lib/flags'
 
 export interface AccessResult {
   allowed: boolean
-  reason: 'flag-off' | 'free-tier' | 'paid' | 'paywall' | 'no-wallet'
+  reason: 'flag-off' | 'free-tier' | 'paid' | 'paywall' | 'no-identity'
   freeUsesLeft: number
   paidUntilMs: number | null
   paidCommissionIds: string[]
   pricePerCommissionWei: string
+  identityKind: 'email' | 'wallet' | 'none'
 }
 
 interface WalletAccessRow {
@@ -19,23 +20,52 @@ interface WalletAccessRow {
   updated_at: number
 }
 
-function getRow(walletLower: string): WalletAccessRow | null {
+interface EmailAccessRow {
+  user_email: string
+  uses_consumed: number
+  updated_at: number
+}
+
+function getWalletRow(walletLower: string): WalletAccessRow | null {
   return db
     .query<WalletAccessRow, [string]>(`SELECT * FROM wallet_access WHERE wallet_lower = ?`)
     .get(walletLower)
 }
 
-function ensureRow(walletLower: string): WalletAccessRow {
-  const existing = getRow(walletLower)
+function ensureWalletRow(walletLower: string): WalletAccessRow {
+  const existing = getWalletRow(walletLower)
   if (existing) return existing
   db.query(
     `INSERT INTO wallet_access (wallet_lower, free_uses_consumed, paid_until, paid_commission_ids, updated_at)
      VALUES (?, 0, NULL, '[]', ?)`,
   ).run(walletLower, now())
-  return getRow(walletLower)!
+  return getWalletRow(walletLower)!
 }
 
-export function describeAccess(wallet: string | null, commissionId?: string): AccessResult {
+function getEmailRow(email: string): EmailAccessRow | null {
+  return db
+    .query<EmailAccessRow, [string]>(`SELECT * FROM user_free_uses WHERE user_email = ?`)
+    .get(email)
+}
+
+function ensureEmailRow(email: string): EmailAccessRow {
+  const existing = getEmailRow(email)
+  if (existing) return existing
+  db.query(
+    `INSERT INTO user_free_uses (user_email, uses_consumed, updated_at)
+     VALUES (?, 0, ?)`,
+  ).run(email, now())
+  return getEmailRow(email)!
+}
+
+export function describeAccess(
+  wallet: string | null,
+  email: string | null,
+  commissionId?: string,
+): AccessResult {
+  const normalizedEmail = email?.trim().toLowerCase() || null
+  const normalizedWallet = wallet?.trim().toLowerCase() || null
+
   if (!FLAGS.PAYMENT_ENABLED) {
     return {
       allowed: true,
@@ -44,66 +74,96 @@ export function describeAccess(wallet: string | null, commissionId?: string): Ac
       paidUntilMs: null,
       paidCommissionIds: [],
       pricePerCommissionWei: PAYMENT_CONFIG.pricePerCommissionWei,
+      identityKind: normalizedEmail ? 'email' : normalizedWallet ? 'wallet' : 'none',
     }
   }
 
-  if (!wallet) {
+  if (!normalizedEmail && !normalizedWallet) {
     return {
       allowed: false,
-      reason: 'no-wallet',
+      reason: 'no-identity',
       freeUsesLeft: 0,
       paidUntilMs: null,
       paidCommissionIds: [],
       pricePerCommissionWei: PAYMENT_CONFIG.pricePerCommissionWei,
+      identityKind: 'none',
     }
   }
 
-  const row = ensureRow(wallet.toLowerCase())
-  const paidIds = JSON.parse(row.paid_commission_ids) as string[]
-  const paidUntilOk = row.paid_until !== null && row.paid_until > Date.now()
+  let paidIds: string[] = []
+  let paidUntilOk = false
+  if (normalizedWallet) {
+    const walletRow = ensureWalletRow(normalizedWallet)
+    paidIds = JSON.parse(walletRow.paid_commission_ids) as string[]
+    paidUntilOk = walletRow.paid_until !== null && walletRow.paid_until > Date.now()
+  }
   if (commissionId && (paidIds.includes(commissionId) || paidUntilOk)) {
     return {
       allowed: true,
       reason: 'paid',
-      freeUsesLeft: Math.max(0, PAYMENT_CONFIG.freeRunsPerWallet - row.free_uses_consumed),
-      paidUntilMs: row.paid_until,
+      freeUsesLeft: getFreeUsesLeft(normalizedEmail, normalizedWallet),
+      paidUntilMs: null,
       paidCommissionIds: paidIds,
       pricePerCommissionWei: PAYMENT_CONFIG.pricePerCommissionWei,
+      identityKind: normalizedEmail ? 'email' : 'wallet',
     }
   }
-  const freeUsesLeft = Math.max(0, PAYMENT_CONFIG.freeRunsPerWallet - row.free_uses_consumed)
+
+  const freeUsesLeft = getFreeUsesLeft(normalizedEmail, normalizedWallet)
   if (freeUsesLeft > 0) {
     return {
       allowed: true,
       reason: 'free-tier',
       freeUsesLeft,
-      paidUntilMs: row.paid_until,
+      paidUntilMs: null,
       paidCommissionIds: paidIds,
       pricePerCommissionWei: PAYMENT_CONFIG.pricePerCommissionWei,
+      identityKind: normalizedEmail ? 'email' : 'wallet',
     }
   }
   return {
     allowed: false,
     reason: 'paywall',
     freeUsesLeft: 0,
-    paidUntilMs: row.paid_until,
+    paidUntilMs: null,
     paidCommissionIds: paidIds,
     pricePerCommissionWei: PAYMENT_CONFIG.pricePerCommissionWei,
+    identityKind: normalizedEmail ? 'email' : 'wallet',
   }
 }
 
-export function consumeFreeUse(wallet: string): void {
+function getFreeUsesLeft(email: string | null, wallet: string | null): number {
+  let consumed = 0
+  if (email) {
+    consumed = ensureEmailRow(email).uses_consumed
+  } else if (wallet) {
+    consumed = ensureWalletRow(wallet).free_uses_consumed
+  }
+  return Math.max(0, PAYMENT_CONFIG.freeRunsPerWallet - consumed)
+}
+
+export function consumeFreeUse(wallet: string | null, email: string | null): void {
   if (!FLAGS.PAYMENT_ENABLED) return
-  const row = ensureRow(wallet.toLowerCase())
-  db.query(`UPDATE wallet_access SET free_uses_consumed = ?, updated_at = ? WHERE wallet_lower = ?`).run(
-    row.free_uses_consumed + 1,
-    now(),
-    wallet.toLowerCase(),
-  )
+  const normalizedEmail = email?.trim().toLowerCase() || null
+  const normalizedWallet = wallet?.trim().toLowerCase() || null
+
+  if (normalizedEmail) {
+    const row = ensureEmailRow(normalizedEmail)
+    db.query(
+      `UPDATE user_free_uses SET uses_consumed = ?, updated_at = ? WHERE user_email = ?`,
+    ).run(row.uses_consumed + 1, now(), normalizedEmail)
+    return
+  }
+  if (normalizedWallet) {
+    const row = ensureWalletRow(normalizedWallet)
+    db.query(
+      `UPDATE wallet_access SET free_uses_consumed = ?, updated_at = ? WHERE wallet_lower = ?`,
+    ).run(row.free_uses_consumed + 1, now(), normalizedWallet)
+  }
 }
 
 export function recordPayment(wallet: string, commissionId: string, txHash: string): void {
-  const row = ensureRow(wallet.toLowerCase())
+  const row = ensureWalletRow(wallet.toLowerCase())
   const ids = new Set(JSON.parse(row.paid_commission_ids) as string[])
   ids.add(commissionId)
   db.query(

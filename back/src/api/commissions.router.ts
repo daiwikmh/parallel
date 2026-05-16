@@ -89,7 +89,8 @@ router.post('/:id/run', async (req: Request, res: Response) => {
     return
   }
   const wallet = (req.header('x-wallet-address') || '').toLowerCase() || null
-  const access = describeAccess(wallet, c.id)
+  const email = (req.header('x-user-email') || '').toLowerCase() || null
+  const access = describeAccess(wallet, email, c.id)
   if (!access.allowed) {
     res.status(402).json({
       error: 'payment required',
@@ -101,10 +102,10 @@ router.post('/:id/run', async (req: Request, res: Response) => {
   const limit = Math.max(1, Math.min(8, Number(req.query.limit) || 3))
   try {
     const result = await runCommissionBatch(c.id, limit)
-    if (FLAGS.PAYMENT_ENABLED && wallet && access.reason === 'free-tier') {
-      consumeFreeUse(wallet)
+    if (FLAGS.PAYMENT_ENABLED && access.reason === 'free-tier') {
+      consumeFreeUse(wallet, email)
     }
-    res.json({ ...result, access: describeAccess(wallet, c.id) })
+    res.json({ ...result, access: describeAccess(wallet, email, c.id) })
   } catch (err) {
     res.status(500).json({ error: (err as Error).message })
   }
@@ -117,7 +118,8 @@ router.get('/:id/access', (req: Request, res: Response) => {
     return
   }
   const wallet = (req.header('x-wallet-address') || '').toLowerCase() || null
-  res.json({ access: describeAccess(wallet, c.id), flags: FLAGS })
+  const email = (req.header('x-user-email') || '').toLowerCase() || null
+  res.json({ access: describeAccess(wallet, email, c.id), flags: FLAGS })
 })
 
 router.get('/:id/briefs', (req, res) => {
