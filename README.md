@@ -136,16 +136,6 @@ Cost is bounded by design: one brief = one storage tx + a few inference calls. C
 
 ---
 
-## Honest gaps
-
-- **Single-tenant data.** Every authenticated user shares `owner_id='anon'`. Per-user isolation is a separate multi-day project.
-- **Per-brief storage upload, not batched.** Each brief = one Flow contract tx. A batched merkle upload per run would cut chain fees significantly.
-- **Server-side storage wallet.** Platform eats storage fees (your `OG_STORAGE_PRIVATE_KEY` pays for every brief from every user). Standard SaaS pattern; flag it for downstream multi-tenant work.
-- **24h paid window is a server-side claim, not on-chain state.** Real product would mint an access NFT or use a subscription contract with `validUntil` on-chain.
-- **7B model quality wall.** Reliable on crypto entity extraction. Will need a larger model for adjacent niches (biotech, legal).
-
----
-
 ## License
 
 MIT.
