@@ -18,6 +18,7 @@ import { ContextPanel } from "@/components/graph/ContextPanel";
 import { Timeline } from "@/components/graph/Timeline";
 import { BriefPanel } from "@/components/dashboard/BriefPanel";
 import { SourcesManager } from "@/components/commission/SourcesManager";
+import { UploadDataset } from "@/components/commission/UploadDataset";
 import { AlertsManager } from "@/components/commission/AlertsManager";
 import { PaywallButton } from "@/components/commission/PaywallButton";
 
@@ -403,6 +404,7 @@ export default function DashboardPage() {
                       selectedEdge={selectedEdge}
                       activeCommissions={commissions}
                       onCommissionCreated={handleCreated}
+                      allNodes={graph.nodes}
                     />
                   </div>
                 </div>
@@ -420,7 +422,8 @@ export default function DashboardPage() {
                 <BriefPanel commissionId={selectedCommissionId} />
                 <AlertsManager commissionId={selectedCommissionId} />
               </div>
-              <div className="lg:col-span-1">
+              <div className="lg:col-span-1 space-y-6">
+                <UploadDataset commissionId={selectedCommissionId} />
                 <SourcesManager commissionId={selectedCommissionId} />
               </div>
             </div>

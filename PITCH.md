@@ -20,6 +20,10 @@
 **Beat 4 — fire it live (15s)**
 - Click RUN NOW. Show the agent picking an article, the brief appearing, then — phone visible in frame — the Telegram notification arriving.
 
+**Beat 5 — BYO data (15s)**
+- Open the Upload Dataset panel. Drop `sample-acquisitions.csv` into the BlackRock commission. "Watch the graph absorb my CSV in real time — same typed extraction pipeline, every row hashed before it goes anywhere. The content hash is committed; my data is mine."
+- Point to the storage_uri readout. "Local hash today, 0G Storage Log CID once I flip the flag."
+
 ## Audit close (15s)
 - Click "Audit Log" in sidebar.
 - "Every action I just took, logged. Every inference call has a 0G request ID and the provider address that served it. Total spent so far in OG: visible there. No background polling — every entry is something I clicked."
@@ -40,7 +44,7 @@
 
 # Submission text (paste into hackathon form)
 
-OG Times is a private intelligence platform built on 0G Compute. Users commission a topic, the agent ingests news (from cached providers and user-supplied RSS/YouTube feeds), and persists a typed knowledge graph + editorial brief per tenant. Alerts fire on entity mentions, edge type appearances, evidence keywords, or sentiment drops — delivered to Telegram, webhooks, and an in-app feed.
+OG Times is a private intelligence platform built on 0G Compute. Users commission a topic, the agent ingests news (from cached providers, user-supplied RSS/YouTube feeds, and uploaded CSV datasets), and persists a typed knowledge graph + editorial brief per tenant. Alerts fire on entity mentions, edge type appearances, evidence keywords, or sentiment drops — delivered to Telegram, webhooks, and an in-app feed.
 
 Every LLM call is captured from the 0G inference router with the provider's on-chain address, request_id, and cost in wei. The audit page surfaces this — every brief, every alert, every inference traces back to an on-chain identity and a billable event.
 

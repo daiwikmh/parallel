@@ -20,6 +20,9 @@ export const PAYMENT_CONFIG = {
 export const STORAGE_CONFIG = {
   endpoint: process.env.OG_STORAGE_ENDPOINT ?? '',
   privateKey: process.env.OG_STORAGE_PRIVATE_KEY ?? '',
+  rpcUrl: process.env.OG_STORAGE_RPC_URL ?? 'https://evmrpc-testnet.0g.ai',
+  indexerUrl: process.env.OG_STORAGE_INDEXER ?? 'https://indexer-storage-testnet-turbo.0g.ai',
+  expectedReplica: Number(process.env.OG_STORAGE_REPLICA ?? '1'),
 }
 
 export function dumpFlags(): void {

@@ -15,6 +15,7 @@ interface Props {
   selectedEdge: GraphEdge | null;
   activeCommissions: Commission[];
   onCommissionCreated: (c: Commission, cls: Classification) => void;
+  allNodes?: GraphNode[];
 }
 
 export function ContextPanel({
@@ -22,14 +23,16 @@ export function ContextPanel({
   selectedEdge,
   activeCommissions,
   onCommissionCreated,
+  allNodes,
 }: Props) {
-  if (selectedEdge) return <EdgePanel edge={selectedEdge} />;
+  if (selectedEdge) return <EdgePanel edge={selectedEdge} allNodes={allNodes} />;
   if (selectedNode)
     return (
       <NodePanel
         node={selectedNode}
         activeCommissions={activeCommissions}
         onCommissionCreated={onCommissionCreated}
+        allNodes={allNodes}
       />
     );
   return <EmptyPanel activeCommissions={activeCommissions} />;
@@ -58,15 +61,19 @@ function NodePanel({
   node,
   activeCommissions,
   onCommissionCreated,
+  allNodes,
 }: {
   node: GraphNode;
   activeCommissions: Commission[];
   onCommissionCreated: (c: Commission, cls: Classification) => void;
+  allNodes?: GraphNode[];
 }) {
   const [detail, setDetail] = useState<EntityDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [commissioning, setCommissioning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showAllEdges, setShowAllEdges] = useState(false);
+  const [expandedEvidence, setExpandedEvidence] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     let cancelled = false;
@@ -147,33 +154,171 @@ function NodePanel({
       )}
 
       <div className="mt-6 font-mono text-label-sm uppercase tracking-widest text-ink-light-muted mb-2">
-        ▶ EDGES {detail ? `(${detail.edges.length})` : ""}
+        ▶ CONNECTED VIA {detail ? `(${detail.edges.length})` : ""}
       </div>
       {loading && <div className="font-mono text-label-sm text-ink-light-muted">▶ loading…</div>}
       {detail && detail.edges.length === 0 && (
-        <div className="font-mono text-label-sm text-ink-light-muted">no edges yet</div>
-      )}
-      {detail && (
-        <div className="space-y-3 max-h-80 overflow-auto pr-1">
-          {detail.edges.slice(0, 12).map((e) => {
-            const other = e.src_id === node.id ? e.dst_id : e.src_id;
-            const direction = e.src_id === node.id ? "→" : "←";
-            return (
-              <div key={e.id} className="border border-ink-light/10 px-3 py-2">
-                <div className="font-mono text-label-sm">
-                  <span className="text-accent-lime">{e.type}</span>{" "}
-                  <span className="text-ink-light-muted">{direction}</span>{" "}
-                  <span className="text-ink-light break-all">{other}</span>
-                </div>
-                {e.evidence && (
-                  <div className="font-mono text-label-sm text-ink-light-muted mt-1 italic line-clamp-2">
-                    &ldquo;{e.evidence}&rdquo;
-                  </div>
-                )}
-              </div>
-            );
-          })}
+        <div className="font-mono text-label-sm text-ink-light-muted">
+          no relationships extracted yet · run the commission or wait for the next batch
         </div>
+      )}
+      {detail && detail.edges.length > 0 && (
+        <EdgeList
+          nodeId={node.id}
+          edges={detail.edges}
+          allNodes={allNodes}
+          showAll={showAllEdges}
+          onToggleShowAll={() => setShowAllEdges((v) => !v)}
+          expanded={expandedEvidence}
+          onToggleEvidence={(id) =>
+            setExpandedEvidence((prev) => {
+              const next = new Set(prev);
+              if (next.has(id)) next.delete(id);
+              else next.add(id);
+              return next;
+            })
+          }
+        />
+      )}
+    </div>
+  );
+}
+
+const EDGE_PREVIEW_LIMIT = 8;
+
+function fmtRelativeDate(ts: number): string {
+  const diff = Date.now() - ts;
+  const minutes = Math.round(diff / 60_000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.round(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  return new Date(ts).toLocaleDateString();
+}
+
+function describeRelation(type: string, direction: "→" | "←"): string {
+  const verbs: Record<string, string> = {
+    founded: direction === "→" ? "founded" : "was founded by",
+    works_at: direction === "→" ? "works at" : "employs",
+    partners_with: "partners with",
+    invests_in: direction === "→" ? "invests in" : "is backed by",
+    regulates: direction === "→" ? "regulates" : "is regulated by",
+    built_on: direction === "→" ? "is built on" : "hosts",
+    competes_with: "competes with",
+    mentions: direction === "→" ? "mentions" : "is mentioned in",
+    affects: direction === "→" ? "affects" : "is affected by",
+    holds_treasury_in: "holds treasury in",
+    audited_by: direction === "→" ? "audited by" : "audited",
+    exploited: direction === "→" ? "exploited" : "was exploited by",
+    merged_into: direction === "→" ? "merged into" : "absorbed",
+    forked_from: direction === "→" ? "forked from" : "spawned fork",
+    announced: direction === "→" ? "announced" : "was announced by",
+    denied: direction === "→" ? "denied" : "was denied by",
+  };
+  return verbs[type] ?? `${type} ${direction}`;
+}
+
+function EdgeList({
+  nodeId,
+  edges,
+  allNodes,
+  showAll,
+  onToggleShowAll,
+  expanded,
+  onToggleEvidence,
+}: {
+  nodeId: string;
+  edges: Array<GraphEdge & { properties: Record<string, unknown> }>;
+  allNodes?: GraphNode[];
+  showAll: boolean;
+  onToggleShowAll: () => void;
+  expanded: Set<number>;
+  onToggleEvidence: (id: number) => void;
+}) {
+  const labelMap = new Map<string, { label: string; type: string }>();
+  if (allNodes) {
+    for (const n of allNodes) labelMap.set(n.id, { label: n.label, type: n.type });
+  }
+  const visible = showAll ? edges : edges.slice(0, EDGE_PREVIEW_LIMIT);
+
+  return (
+    <div className="space-y-2 max-h-[28rem] overflow-auto pr-1">
+      {visible.map((e) => {
+        const otherId = e.src_id === nodeId ? e.dst_id : e.src_id;
+        const direction: "→" | "←" = e.src_id === nodeId ? "→" : "←";
+        const other = labelMap.get(otherId);
+        const otherLabel = other?.label ?? otherId;
+        const otherType = other?.type;
+        const isArticle = otherId.startsWith("event:article-");
+        const isOpen = expanded.has(e.id);
+        const evidence = e.evidence?.trim();
+        const articleUrl = typeof e.properties?.url === "string" ? (e.properties.url as string) : undefined;
+        const articleTitle = typeof e.properties?.full_title === "string" ? (e.properties.full_title as string) : undefined;
+
+        return (
+          <div key={e.id} className="border border-ink-light/10 px-3 py-2">
+            <div className="font-mono text-label-sm text-ink-light leading-snug">
+              <span className="text-ink-light-muted">this</span>{" "}
+              <span className="text-accent-lime">{describeRelation(e.type, direction)}</span>{" "}
+              <span className="text-ink-light break-words">{otherLabel}</span>
+              {otherType && (
+                <span className="ml-2 text-ink-light-muted uppercase tracking-widest text-[10px]">
+                  {otherType}
+                </span>
+              )}
+            </div>
+
+            {evidence && (
+              <button
+                onClick={() => onToggleEvidence(e.id)}
+                className="text-left w-full font-mono text-label-sm text-ink-light-muted mt-1.5 italic border-l-2 border-accent-lime/30 pl-2 hover:border-accent-lime/70 transition-colors"
+                title={isOpen ? "Collapse evidence" : "Expand evidence"}
+              >
+                <span className={isOpen ? "" : "line-clamp-2"}>&ldquo;{evidence}&rdquo;</span>
+              </button>
+            )}
+
+            <div className="font-mono text-[10px] text-ink-light-muted mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5">
+              <span>
+                conf <span className="text-ink-light">{(e.confidence ?? 0).toFixed(2)}</span>
+              </span>
+              <span>
+                seen <span className="text-ink-light">{fmtRelativeDate(e.observed_at)}</span>
+              </span>
+              {isArticle && articleTitle && (
+                <span className="basis-full text-ink-light-muted truncate">
+                  via: <span className="text-ink-light">{articleTitle}</span>
+                </span>
+              )}
+              {articleUrl && (
+                <a
+                  href={articleUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-accent-lime hover:text-accent-lime-bright"
+                >
+                  source ↗
+                </a>
+              )}
+              {!articleUrl && e.article_id && (
+                <span className="text-ink-light-muted break-all">
+                  art: <span className="text-ink-light">{e.article_id.slice(-12)}</span>
+                </span>
+              )}
+            </div>
+          </div>
+        );
+      })}
+
+      {edges.length > EDGE_PREVIEW_LIMIT && (
+        <button
+          onClick={onToggleShowAll}
+          className="w-full font-mono text-label-sm uppercase tracking-widest text-ink-light-muted hover:text-accent-lime py-2 transition-colors"
+        >
+          {showAll ? `▴ collapse to ${EDGE_PREVIEW_LIMIT}` : `▾ show all ${edges.length}`}
+        </button>
       )}
     </div>
   );
@@ -280,21 +425,41 @@ function AttributesBlock({ entity }: { entity: EntityDetail["entity"] }) {
   );
 }
 
-function EdgePanel({ edge }: { edge: GraphEdge }) {
+function EdgePanel({ edge, allNodes }: { edge: GraphEdge; allNodes?: GraphNode[] }) {
+  const map = new Map<string, GraphNode>();
+  if (allNodes) for (const n of allNodes) map.set(n.id, n);
+  const src = map.get(edge.src_id);
+  const dst = map.get(edge.dst_id);
+
   return (
     <div className="p-4">
       <div className="font-mono text-label-sm uppercase tracking-widest text-ink-light-muted mb-3">
-        ▶ EDGE
+        ▶ RELATIONSHIP
       </div>
-      <div className="mb-3 font-mono text-label-sm uppercase tracking-widest text-accent-lime">
-        {edge.type}
+      <div className="mb-4 border border-ink-light/10 px-3 py-3">
+        <div className="font-mono text-label-sm text-ink-light leading-relaxed">
+          <span className="text-ink-light">{src?.label ?? edge.src_id}</span>
+          {src?.type && (
+            <span className="ml-2 text-ink-light-muted uppercase tracking-widest text-[10px]">
+              {src.type}
+            </span>
+          )}
+        </div>
+        <div className="font-mono text-label-sm text-accent-lime uppercase tracking-widest my-1.5">
+          ↓ {edge.type}
+        </div>
+        <div className="font-mono text-label-sm text-ink-light leading-relaxed">
+          <span className="text-ink-light">{dst?.label ?? edge.dst_id}</span>
+          {dst?.type && (
+            <span className="ml-2 text-ink-light-muted uppercase tracking-widest text-[10px]">
+              {dst.type}
+            </span>
+          )}
+        </div>
       </div>
-      <div className="font-mono text-label-sm text-ink-light break-all mb-1">{edge.src_id}</div>
-      <div className="font-mono text-label-sm text-ink-light-muted">→</div>
-      <div className="font-mono text-label-sm text-ink-light break-all mb-4">{edge.dst_id}</div>
 
       <div className="font-mono text-label-sm uppercase tracking-widest text-ink-light-muted mb-2">
-        ▶ EVIDENCE
+        ▶ WHY (evidence)
       </div>
       <div className="font-mono text-label-sm text-ink-light italic border-l-2 border-accent-lime/40 pl-3 py-1 mb-4">
         {edge.evidence ? `"${edge.evidence}"` : <span className="text-ink-light-muted">none recorded</span>}

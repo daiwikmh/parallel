@@ -178,3 +178,23 @@ CREATE TABLE IF NOT EXISTS wallet_access (
   last_payment_tx TEXT,
   updated_at INTEGER NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS uploads (
+  id TEXT PRIMARY KEY,
+  commission_id TEXT NOT NULL REFERENCES commissions(id),
+  filename TEXT NOT NULL,
+  mime TEXT,
+  size INTEGER NOT NULL,
+  content_sha256 TEXT NOT NULL,
+  storage_uri TEXT,
+  rows_total INTEGER NOT NULL DEFAULT 0,
+  rows_processed INTEGER NOT NULL DEFAULT 0,
+  entities_added INTEGER NOT NULL DEFAULT 0,
+  edges_added INTEGER NOT NULL DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'pending',
+  error TEXT,
+  created_at INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_uploads_commission ON uploads(commission_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_uploads_sha ON uploads(content_sha256);

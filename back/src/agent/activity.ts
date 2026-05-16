@@ -4,6 +4,15 @@ export type ActivityAction =
   | 'WRITE'
   | 'DONE'
   | 'ERROR'
+  | 'GRAPH'
+  | 'BATCH'
+  | 'SOURCES'
+  | 'NOCOV'
+  | 'SEARCH'
+  | 'ALERT'
+  | 'STORAGE'
+  | 'WARN'
+  | 'UPLOAD'
 
 export interface ActivityEvent {
   timestamp: number

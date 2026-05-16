@@ -12,6 +12,7 @@ const KIND_COLOR: Record<string, string> = {
   source_added: "text-accent-blue",
   channel_added: "text-accent-yellow",
   article_processed: "text-ink-light-muted",
+  upload_processed: "text-accent-lime",
 };
 
 const KIND_LABEL: Record<string, string> = {
@@ -24,6 +25,7 @@ const KIND_LABEL: Record<string, string> = {
   source_added: "SOURCE",
   channel_added: "CHANNEL",
   article_processed: "ARTICLE",
+  upload_processed: "UPLOAD",
 };
 
 function fmt(ts: number): string {

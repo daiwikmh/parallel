@@ -7,6 +7,7 @@ import graphRouter from './api/graph.router'
 import sourcesRouter from './api/sources.router'
 import integrationsRouter from './api/integrations.router'
 import alertsRouter from './api/alerts.router'
+import uploadsRouter from './api/uploads.router'
 import { dumpFlags } from './lib/flags'
 import { startPaymentEventListener } from './og/chain'
 import { startTelegramBot } from './integrations/telegram-bot'
@@ -47,6 +48,7 @@ app.use('/api/graph', graphRouter)
 app.use('/api/sources', sourcesRouter)
 app.use('/api/integrations', integrationsRouter)
 app.use('/api/alerts', alertsRouter)
+app.use('/api/uploads', uploadsRouter)
 
 // Auth router intentionally not mounted yet: middleware/jwt is missing.
 

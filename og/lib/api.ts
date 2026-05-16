@@ -450,3 +450,53 @@ export interface AuditFeed {
 export async function fetchAuditFeed(limit = 100): Promise<AuditFeed> {
   return jsonFetch(`/api/agent/audit?limit=${limit}`);
 }
+
+export interface UploadRow {
+  id: string;
+  commission_id: string;
+  filename: string;
+  mime: string | null;
+  size: number;
+  content_sha256: string;
+  storage_uri: string | null;
+  rows_total: number;
+  rows_processed: number;
+  entities_added: number;
+  edges_added: number;
+  status: "pending" | "processing" | "completed" | "partial" | "failed";
+  error: string | null;
+  created_at: number;
+}
+
+export async function listUploads(commissionId: string): Promise<{ uploads: UploadRow[] }> {
+  return jsonFetch(`/api/uploads/${commissionId}`);
+}
+
+export async function getUpload(commissionId: string, uploadId: string): Promise<{ upload: UploadRow }> {
+  return jsonFetch(`/api/uploads/${commissionId}/${uploadId}`);
+}
+
+export interface UploadStartResponse {
+  upload_id: string;
+  sha256: string;
+  storage_uri: string;
+  rows_total: number;
+  status: string;
+}
+
+export async function uploadCsv(commissionId: string, file: File): Promise<UploadStartResponse> {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${API_BASE}/api/uploads/${commissionId}`, {
+    method: "POST",
+    headers: { ...getWalletHeader() },
+    body: form,
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error((body as { error?: string }).error ?? `upload failed: ${res.status}`);
+    (err as Error & { status?: number }).status = res.status;
+    throw err;
+  }
+  return body as UploadStartResponse;
+}

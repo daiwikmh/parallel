@@ -130,6 +130,48 @@ RULES:
 - Do NOT invent new edge or entity types. If you cannot decide between two edge types, SKIP the edge.
 - Return at most 8 entities and 6 edges.`
 
+export interface RowExtractContext {
+  commissionName?: string
+  commissionType?: string
+  filename?: string
+  rowIndex?: number
+}
+
+export async function extractFromRow(
+  row: Record<string, string>,
+  headers: string[],
+  ctx: RowExtractContext = {},
+): Promise<ExtractionOutput> {
+  const headerLine = headers.length ? headers.join(', ') : Object.keys(row).join(', ')
+  const rowLine = headers
+    .map((h) => `${h}: ${(row[h] ?? '').toString().trim()}`)
+    .filter((s) => !s.endsWith(': '))
+    .join(' | ')
+  const contextLine = ctx.commissionName
+    ? `Commission context: ${ctx.commissionName}${ctx.commissionType ? ` (${ctx.commissionType})` : ''}.`
+    : ''
+  const fileLine = ctx.filename ? `Source file: ${ctx.filename}${ctx.rowIndex !== undefined ? ` row ${ctx.rowIndex + 1}` : ''}.` : ''
+
+  const user = `${contextLine}
+${fileLine}
+CSV headers: [${headerLine}]
+Row data: ${rowLine}
+
+This is a single row from a user-uploaded dataset. Treat it like a mini news article: extract entities and typed relationships that match the schema. Skip the row if relationships are unclear. Return the extraction JSON now.`
+
+  const messages: ChatMessage[] = [
+    { role: 'system', content: SYSTEM },
+    { role: 'user', content: user },
+  ]
+
+  const { data, result } = await chatJson<{
+    entities?: unknown
+    edges?: unknown
+  }>(messages, { temperature: 0.2, maxTokens: 900 })
+
+  return { result: validate(data), source: result }
+}
+
 export async function extractGraph(item: NewsItem): Promise<ExtractionOutput> {
   const user = `Article:
 - Title: ${item.title}

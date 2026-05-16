@@ -583,6 +583,8 @@ export function listAuditFeed(limit = 100): AuditRow[] {
       SELECT created_at AS ts, 'channel_added' AS kind, CAST(id AS TEXT) AS related_id, kind || ' · ' || target AS summary, NULL AS trace_id, NULL AS commission_id FROM delivery_channels
       UNION ALL
       SELECT processed_at AS ts, 'article_processed' AS kind, article_id AS related_id, NULL AS summary, NULL AS trace_id, commission_id FROM commission_articles
+      UNION ALL
+      SELECT created_at AS ts, 'upload_processed' AS kind, id AS related_id, filename || ' · ' || rows_processed || '/' || rows_total || ' rows · ' || entities_added || ' entities · ' || edges_added || ' edges · ' || COALESCE(storage_uri, '') AS summary, NULL AS trace_id, commission_id FROM uploads
     )
     ORDER BY ts DESC
     LIMIT ?
@@ -600,7 +602,8 @@ export function auditCounts(): Record<string, number> {
        UNION ALL SELECT 'alerts_fired', COUNT(*) FROM alert_events
        UNION ALL SELECT 'sources', COUNT(*) FROM sources
        UNION ALL SELECT 'channels', COUNT(*) FROM delivery_channels
-       UNION ALL SELECT 'articles_processed', COUNT(*) FROM commission_articles`,
+       UNION ALL SELECT 'articles_processed', COUNT(*) FROM commission_articles
+       UNION ALL SELECT 'uploads', COUNT(*) FROM uploads`,
     )
     .all()
   const out: Record<string, number> = {}
@@ -734,6 +737,79 @@ const SEED_ALIASES: Array<{ entityId: string; aliases: string[] }> = [
   { entityId: 'protocol:ethereum', aliases: ['ethereum'] },
   { entityId: 'protocol:solana', aliases: ['solana'] },
 ]
+
+export interface UploadRow {
+  id: string
+  commission_id: string
+  filename: string
+  mime: string | null
+  size: number
+  content_sha256: string
+  storage_uri: string | null
+  rows_total: number
+  rows_processed: number
+  entities_added: number
+  edges_added: number
+  status: 'pending' | 'processing' | 'completed' | 'partial' | 'failed'
+  error: string | null
+  created_at: number
+}
+
+export interface CreateUploadInput {
+  commission_id: string
+  filename: string
+  mime?: string | null
+  size: number
+  content_sha256: string
+  storage_uri?: string | null
+  rows_total: number
+}
+
+export function createUpload(input: CreateUploadInput): UploadRow {
+  const id = `u_${Math.random().toString(36).slice(2, 10)}_${Date.now().toString(36)}`
+  const t = now()
+  db.query(
+    `INSERT INTO uploads (id, commission_id, filename, mime, size, content_sha256, storage_uri, rows_total, status, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
+  ).run(
+    id,
+    input.commission_id,
+    input.filename,
+    input.mime ?? null,
+    input.size,
+    input.content_sha256,
+    input.storage_uri ?? null,
+    input.rows_total,
+    t,
+  )
+  return getUpload(id)!
+}
+
+export function getUpload(id: string): UploadRow | null {
+  return db.query<UploadRow, [string]>(`SELECT * FROM uploads WHERE id = ?`).get(id) ?? null
+}
+
+export function listUploadsForCommission(commission_id: string, limit = 20): UploadRow[] {
+  return db
+    .query<UploadRow, [string, number]>(
+      `SELECT * FROM uploads WHERE commission_id = ? ORDER BY created_at DESC LIMIT ?`,
+    )
+    .all(commission_id, limit)
+}
+
+export function updateUploadProgress(id: string, patch: Partial<Pick<UploadRow, 'rows_processed' | 'entities_added' | 'edges_added' | 'status' | 'error' | 'storage_uri'>>): void {
+  const sets: string[] = []
+  const vals: (string | number | null)[] = []
+  for (const k of ['rows_processed', 'entities_added', 'edges_added', 'status', 'error', 'storage_uri'] as const) {
+    if (patch[k] !== undefined) {
+      sets.push(`${k} = ?`)
+      vals.push(patch[k] as string | number | null)
+    }
+  }
+  if (!sets.length) return
+  vals.push(id)
+  db.query(`UPDATE uploads SET ${sets.join(', ')} WHERE id = ?`).run(...vals)
+}
 
 export function seedEntityAliases(): void {
   const t = now()
