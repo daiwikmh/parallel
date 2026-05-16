@@ -5,6 +5,10 @@
 
 Built for the 0G hackathon. Live: [frame0-nine.vercel.app](https://frame0-nine.vercel.app)
 
+![Dashboard — Commission a topic](og/public/meshcomms.png)
+
+![News feed — What the agent is reading right now](og/public/news.png)
+
 ---
 
 ## The problem
