@@ -1,16 +1,19 @@
 "use client";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ComponentType } from "react";
 import dynamic from "next/dynamic";
 import type { GraphPayload, GraphNode, GraphEdge, EntityKind } from "@/lib/api";
 
-const ForceGraph2D = dynamic(() => import("react-force-graph-2d").then((m) => m.default), {
-  ssr: false,
-  loading: () => (
-    <div className="h-full w-full flex items-center justify-center text-ink-light-muted font-mono text-label-sm">
-      ▶ initializing graph…
-    </div>
-  ),
-});
+const ForceGraph2D = dynamic(
+  () => import("react-force-graph-2d").then((m) => m.default),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-full w-full flex items-center justify-center text-ink-light-muted font-mono text-label-sm">
+        ▶ initializing graph…
+      </div>
+    ),
+  },
+) as unknown as ComponentType<Record<string, unknown>>;
 
 interface Props {
   graph: GraphPayload;
@@ -136,7 +139,7 @@ export function GraphView({
         nodeLabel={(n: ForceNode) => `${n.label} (${n.type})`}
         nodeRelSize={6}
         nodeVal={(n: ForceNode) => 1 + Math.min(8, n.edge_count)}
-        nodeCanvasObject={(node: ForceNode, ctx, scale) => {
+        nodeCanvasObject={(node: ForceNode, ctx: CanvasRenderingContext2D, scale: number) => {
           const r = 4 + Math.min(6, node.edge_count) * 0.6;
           ctx.beginPath();
           ctx.arc(node.x!, node.y!, r, 0, 2 * Math.PI);
@@ -155,7 +158,7 @@ export function GraphView({
           ctx.textBaseline = "top";
           ctx.fillText(label, node.x!, node.y! + r + 2);
         }}
-        nodePointerAreaPaint={(node: ForceNode, color, ctx) => {
+        nodePointerAreaPaint={(node: ForceNode, color: string, ctx: CanvasRenderingContext2D) => {
           const r = 8 + Math.min(6, node.edge_count) * 0.6;
           ctx.beginPath();
           ctx.arc(node.x!, node.y!, r, 0, 2 * Math.PI);
@@ -168,7 +171,7 @@ export function GraphView({
         linkDirectionalArrowLength={4}
         linkDirectionalArrowRelPos={0.85}
         linkCanvasObjectMode={() => "after"}
-        linkCanvasObject={(link: ForceLink, ctx, scale) => {
+        linkCanvasObject={(link: ForceLink, ctx: CanvasRenderingContext2D, scale: number) => {
           const src = link.source as ForceNode;
           const tgt = link.target as ForceNode;
           if (!src.x || !tgt.x) return;
@@ -181,11 +184,11 @@ export function GraphView({
           ctx.textBaseline = "middle";
           ctx.fillText(link.edge.type, mx, my);
         }}
-        onNodeClick={(n) => {
+        onNodeClick={(n: unknown) => {
           onNodeClick(n as GraphNode);
         }}
-        onLinkClick={(l) => {
-          onEdgeClick((l as unknown as ForceLink).edge);
+        onLinkClick={(l: unknown) => {
+          onEdgeClick((l as ForceLink).edge);
         }}
         onBackgroundClick={onBackgroundClick}
         cooldownTicks={300}
