@@ -43,7 +43,7 @@ router.post('/', async (req: Request, res: Response) => {
       if (price) attributes = { price }
     }
 
-    upsertEntity({
+    const entity = upsertEntity({
       canonical_id: cls.canonical_id,
       type: cls.type,
       name: cls.canonical_name,
@@ -53,7 +53,7 @@ router.post('/', async (req: Request, res: Response) => {
 
     const commission = createCommission({
       query_text: query.trim(),
-      entity_id: cls.canonical_id,
+      entity_id: entity.id,
       entity_type: cls.type,
       thesis: thesis?.trim() || null,
     })
@@ -99,7 +99,7 @@ router.post('/:id/run', async (req: Request, res: Response) => {
     })
     return
   }
-  const limit = Math.max(1, Math.min(8, Number(req.query.limit) || 3))
+  const limit = Math.max(1, Math.min(30, Number(req.query.limit) || 12))
   try {
     const result = await runCommissionBatch(c.id, limit)
     if (FLAGS.PAYMENT_ENABLED && access.reason === 'free-tier') {
