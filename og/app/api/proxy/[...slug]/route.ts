@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 
 const BACKEND_URL = (process.env.BACKEND_INTERNAL_URL ?? "http://localhost:4000").replace(/\/$/, "");
 const INTERNAL_TOKEN = process.env.BACKEND_INTERNAL_TOKEN ?? "";
+const AUTH_DISABLED = process.env.AUTH_ENABLED === "false";
 
 const HOP_BY_HOP = new Set([
   "connection",
@@ -20,9 +21,13 @@ const HOP_BY_HOP = new Set([
 type RouteContext = { params: Promise<{ slug?: string[] }> };
 
 async function forward(req: NextRequest, context: RouteContext): Promise<Response> {
-  const session = await auth();
-  if (!session?.user) {
-    return NextResponse.json({ error: "not authenticated" }, { status: 401 });
+  let userEmail: string | null = null;
+  if (!AUTH_DISABLED) {
+    const session = await auth();
+    if (!session?.user) {
+      return NextResponse.json({ error: "not authenticated" }, { status: 401 });
+    }
+    userEmail = session.user.email ?? null;
   }
 
   const { slug = [] } = await context.params;
@@ -35,7 +40,7 @@ async function forward(req: NextRequest, context: RouteContext): Promise<Respons
     if (!HOP_BY_HOP.has(k.toLowerCase())) outHeaders.set(k, v);
   }
   if (INTERNAL_TOKEN) outHeaders.set("x-internal-token", INTERNAL_TOKEN);
-  if (session.user.email) outHeaders.set("x-user-email", session.user.email);
+  if (userEmail) outHeaders.set("x-user-email", userEmail);
   outHeaders.delete("cookie");
 
   const method = req.method.toUpperCase();
