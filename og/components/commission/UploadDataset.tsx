@@ -34,7 +34,7 @@ function statusLabel(s: UploadRow["status"]): { text: string; color: string } {
     case "failed":
       return { text: "FAILED", color: "text-accent-orange" };
     default:
-      return { text: s.toUpperCase(), color: "text-ink-light-muted" };
+      return { text: (s as string).toUpperCase(), color: "text-ink-light-muted" };
   }
 }
 
