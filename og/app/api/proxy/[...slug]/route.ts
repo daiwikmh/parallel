@@ -22,13 +22,17 @@ type RouteContext = { params: Promise<{ slug?: string[] }> };
 
 async function forward(req: NextRequest, context: RouteContext): Promise<Response> {
   let userEmail: string | null = null;
-  if (!AUTH_DISABLED) {
-    const session = await auth();
-    if (!session?.user) {
-      return NextResponse.json({ error: "not authenticated" }, { status: 401 });
-    }
-    userEmail = session.user.email ?? null;
+  let user: { email?: string | null } | null = null;
+  try {
+    const session = (await auth()) as { user?: { email?: string | null } } | null;
+    user = session?.user ?? null;
+  } catch {
+    user = null;
   }
+  if (!AUTH_DISABLED && !user) {
+    return NextResponse.json({ error: "not authenticated" }, { status: 401 });
+  }
+  userEmail = user?.email ?? null;
 
   const { slug = [] } = await context.params;
   const path = "/" + slug.map(encodeURIComponent).join("/");

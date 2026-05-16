@@ -9,6 +9,7 @@ import integrationsRouter from './api/integrations.router'
 import alertsRouter from './api/alerts.router'
 import uploadsRouter from './api/uploads.router'
 import vaultRouter from './api/vault.router'
+import paymentRouter from './api/payment.router'
 import { runMigrations } from './db/migrate'
 import { dumpFlags } from './lib/flags'
 import { startPaymentEventListener } from './og/chain'
@@ -76,6 +77,7 @@ app.use('/api/integrations', integrationsRouter)
 app.use('/api/alerts', alertsRouter)
 app.use('/api/uploads', uploadsRouter)
 app.use('/api/vault', vaultRouter)
+app.use('/api/payment', paymentRouter)
 
 // Auth router intentionally not mounted yet: middleware/jwt is missing.
 

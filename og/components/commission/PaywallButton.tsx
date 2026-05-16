@@ -8,11 +8,28 @@ interface Props {
   onPaid?: (txHash: string) => void;
 }
 
+async function confirmPaymentOnBackend(
+  txHash: string,
+  commissionId: string,
+  wallet: string,
+): Promise<void> {
+  const res = await fetch("/api/proxy/payment/confirm", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Wallet-Address": wallet },
+    body: JSON.stringify({ txHash, commissionId, wallet }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error((body as { error?: string }).error ?? `confirm failed: ${res.status}`);
+  }
+}
+
 export function PaywallButton({ commissionId, onPaid }: Props) {
   const { account, chainId, connect, switchChain } = useWallet();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [tx, setTx] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
 
   const onTargetChain = chainId?.toLowerCase() === OG_GALILEO.id.toLowerCase();
 
@@ -31,7 +48,24 @@ export function PaywallButton({ commissionId, onPaid }: Props) {
     try {
       const { txHash } = await payForCommission(commissionId, account as `0x${string}`);
       setTx(txHash);
-      onPaid?.(txHash);
+      setConfirming(true);
+      let lastErr: Error | null = null;
+      for (let i = 0; i < 6; i++) {
+        try {
+          await confirmPaymentOnBackend(txHash, commissionId, account);
+          lastErr = null;
+          break;
+        } catch (e) {
+          lastErr = e as Error;
+          await new Promise((r) => setTimeout(r, 3000));
+        }
+      }
+      setConfirming(false);
+      if (lastErr) {
+        setError(`paid on-chain but backend confirm failed: ${lastErr.message}`);
+      } else {
+        onPaid?.(txHash);
+      }
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -64,7 +98,7 @@ export function PaywallButton({ commissionId, onPaid }: Props) {
         <div className="text-accent-lime text-[11px] break-all">
           ▸ tx submitted:{" "}
           <a
-            href={`https://chainscan-galileo.0g.ai/tx/${tx}`}
+            href={`https://explorer.0g.ai/testnet/tx/${tx}`}
             target="_blank"
             rel="noopener noreferrer"
             className="underline"
@@ -72,7 +106,7 @@ export function PaywallButton({ commissionId, onPaid }: Props) {
             {tx.slice(0, 14)}…
           </a>
           <div className="text-ink-light-muted normal-case mt-1">
-            backend listener will grant access in ~5s after confirmation
+            {confirming ? "▸ confirming with backend…" : "▸ confirmed. reload to unlock."}
           </div>
         </div>
       )}
