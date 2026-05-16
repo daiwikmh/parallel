@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "dev": "bun run --watch src/server.ts",
-    "start": "bun run src/server.ts",
+    "start": "bun src/db/migrate.ts && bun run src/server.ts",
+    "migrate": "bun src/db/migrate.ts",
     "worker": "bun run test.ts",
     "test": "bun run test.ts"
   },
