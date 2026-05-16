@@ -91,18 +91,20 @@ export function describeAccess(
   }
 
   let paidIds: string[] = []
+  let paidUntil: number | null = null
   let paidUntilOk = false
   if (normalizedWallet) {
     const walletRow = ensureWalletRow(normalizedWallet)
     paidIds = JSON.parse(walletRow.paid_commission_ids) as string[]
-    paidUntilOk = walletRow.paid_until !== null && walletRow.paid_until > Date.now()
+    paidUntil = walletRow.paid_until
+    paidUntilOk = paidUntil !== null && paidUntil > Date.now()
   }
-  if (commissionId && (paidIds.includes(commissionId) || paidUntilOk)) {
+  if (paidUntilOk || (commissionId && paidIds.includes(commissionId))) {
     return {
       allowed: true,
       reason: 'paid',
       freeUsesLeft: getFreeUsesLeft(normalizedEmail, normalizedWallet),
-      paidUntilMs: null,
+      paidUntilMs: paidUntil,
       paidCommissionIds: paidIds,
       pricePerCommissionWei: PAYMENT_CONFIG.pricePerCommissionWei,
       identityKind: normalizedEmail ? 'email' : 'wallet',
@@ -162,11 +164,14 @@ export function consumeFreeUse(wallet: string | null, email: string | null): voi
   }
 }
 
+const PAID_WINDOW_MS = 24 * 60 * 60 * 1000
+
 export function recordPayment(wallet: string, commissionId: string, txHash: string): void {
   const row = ensureWalletRow(wallet.toLowerCase())
   const ids = new Set(JSON.parse(row.paid_commission_ids) as string[])
   ids.add(commissionId)
+  const paidUntil = Date.now() + PAID_WINDOW_MS
   db.query(
-    `UPDATE wallet_access SET paid_commission_ids = ?, last_payment_tx = ?, updated_at = ? WHERE wallet_lower = ?`,
-  ).run(JSON.stringify(Array.from(ids)), txHash, now(), wallet.toLowerCase())
+    `UPDATE wallet_access SET paid_commission_ids = ?, paid_until = ?, last_payment_tx = ?, updated_at = ? WHERE wallet_lower = ?`,
+  ).run(JSON.stringify(Array.from(ids)), paidUntil, txHash, now(), wallet.toLowerCase())
 }
