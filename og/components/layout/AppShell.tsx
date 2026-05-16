@@ -13,7 +13,7 @@ const TITLES: Record<string, string> = {
 function deriveTitle(pathname: string): string {
   if (TITLES[pathname]) return TITLES[pathname];
   const top = "/" + pathname.split("/").filter(Boolean)[0];
-  return TITLES[top] ?? "OG Times";
+  return TITLES[top] ?? "Frame0";
 }
 
 function Topbar() {

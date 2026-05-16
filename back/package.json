@@ -1,7 +1,7 @@
 {
   "name": "back",
   "version": "1.0.0",
-  "description": "og times backend",
+  "description": "Frame0 backend",
   "main": "index.js",
   "scripts": {
     "dev": "bun run --watch src/server.ts",

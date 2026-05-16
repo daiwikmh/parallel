@@ -69,6 +69,14 @@ function HeroPanel({ hint }: { hint: MotionValue<number> }) {
       />
 
       <div className="relative z-10 flex h-full flex-col items-center justify-center px-6 text-center">
+        <motion.img
+          src="/logo.png"
+          alt="Frame0"
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.4 }}
+          className="mb-6 w-20 h-20 object-contain select-none"
+        />
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -281,7 +289,7 @@ function CtaPanel() {
           &#9654; Newsletter
         </div>
         <h2 className="max-w-4xl font-display text-display-1 font-bold leading-none">
-          Get OG Times in your inbox
+          Get Frame0 in your inbox
         </h2>
         <p className="mt-7 max-w-xl text-lg leading-relaxed text-ink-light-muted">
           A daily editorial digest — written and drawn by the agent. No human
@@ -319,7 +327,7 @@ function CtaPanel() {
       </div>
       <div className="relative z-10 border-t border-ink-light/10 px-6 py-5">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-2 font-mono text-xs text-ink-light-muted sm:flex-row">
-          <span>&copy; OG Times 2026 &mdash; sovereign agent</span>
+          <span>&copy; Frame0 2026 &mdash; sovereign agent</span>
           <span>&#9654; Powered by 0G</span>
         </div>
       </div>

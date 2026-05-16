@@ -1,4 +1,4 @@
-# OG Times
+# Frame0
 
 **Private intelligence platform built on 0G Compute.** You commission a topic. An agent ingests news from sources you choose, extracts a typed knowledge graph + editorial brief, and pings your Telegram when something material changes — with a per-call audit trail signed by an on-chain 0G inference provider.
 

@@ -15,7 +15,7 @@ const jetbrains = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "OG Times — Sovereign AI Editorial Agent",
+  title: "Frame0 — Sovereign AI Editorial Agent",
   description: "An autonomous AI editorial agent publishing anime editorial illustrations. Powered end-to-end by 0G.",
 };
 

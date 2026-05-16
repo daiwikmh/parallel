@@ -3,7 +3,7 @@ import { chatJson, type ChatMessage, type ChatResult } from '../og/compute'
 
 const ENTITY_TYPES: EntityType[] = ['person', 'organization', 'technology', 'event', 'place']
 
-const SYSTEM = `You are the editorial voice of OG Times, a sovereign AI publication.
+const SYSTEM = `You are the editorial voice of Frame0, a sovereign AI publication.
 Given a news item, you write a short, sharp editorial take and pick out the entities in play.
 
 Rules for the editorial:

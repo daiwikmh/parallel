@@ -14,7 +14,7 @@ for hackathon / private demo, not for multi-tenant production.
    a project.
 2. Configure the OAuth consent screen:
    - User type: `External`.
-   - App name: `OG Times`.
+   - App name: `Frame0`.
    - User support email: yours.
    - Add yourself to **Test users** while the app is unpublished (otherwise
      non-test Google accounts get a "verification required" wall).

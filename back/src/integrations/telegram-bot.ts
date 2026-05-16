@@ -46,7 +46,7 @@ async function pollOnce(): Promise<void> {
       if (text === '/start' || text.toLowerCase().startsWith('/help')) {
         await sendMessage(
           chatId,
-          `Hi ${name} — welcome to OG Times.\n\nYour chat ID is: ${chatId}\n\nPaste this into the OG Times sidebar (Telegram section) and your alerts will be delivered here.`,
+          `Hi ${name} — welcome to Frame0.\n\nYour chat ID is: ${chatId}\n\nPaste this into the Frame0 sidebar (Telegram section) and your alerts will be delivered here.`,
         )
       } else if (text.toLowerCase() === '/id' || text.toLowerCase() === '/chatid') {
         await sendMessage(chatId, `Your chat ID is: ${chatId}`)

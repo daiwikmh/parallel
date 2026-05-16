@@ -88,7 +88,7 @@ router.post('/telegram/test', async (req: Request, res: Response) => {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         chat_id: row.target,
-        text: 'OG Times — test message. If you see this, Telegram delivery is wired.',
+        text: 'Frame0 — test message. If you see this, Telegram delivery is wired.',
       }),
     })
     const body = (await r.json()) as { ok?: boolean; description?: string }

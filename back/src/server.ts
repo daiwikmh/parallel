@@ -82,7 +82,7 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
 })
 
 app.listen(PORT, () => {
-  console.log(`OG Times backend listening on http://localhost:${PORT}`)
+  console.log(`Frame0 backend listening on http://localhost:${PORT}`)
   console.log(`CORS allowed origins: ${ALLOWED_ORIGINS.join(', ')}`)
   dumpFlags()
   startPaymentEventListener()

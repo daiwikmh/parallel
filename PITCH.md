@@ -1,7 +1,7 @@
 # Pitch script — 90 seconds
 
 ## Cold open (10s)
-"This is OG Times. I commission a topic, an agent watches it for me, and pings me on Telegram when something material changes — with an audit trail signed by an on-chain inference provider."
+"This is Frame0. I commission a topic, an agent watches it for me, and pings me on Telegram when something material changes — with an audit trail signed by an on-chain inference provider."
 
 ## Demo (60s)
 
@@ -44,7 +44,7 @@
 
 # Submission text (paste into hackathon form)
 
-OG Times is a private intelligence platform built on 0G Compute. Users commission a topic, the agent ingests news (from cached providers, user-supplied RSS/YouTube feeds, and uploaded CSV datasets), and persists a typed knowledge graph + editorial brief per tenant. Alerts fire on entity mentions, edge type appearances, evidence keywords, or sentiment drops — delivered to Telegram, webhooks, and an in-app feed.
+Frame0 is a private intelligence platform built on 0G Compute. Users commission a topic, the agent ingests news (from cached providers, user-supplied RSS/YouTube feeds, and uploaded CSV datasets), and persists a typed knowledge graph + editorial brief per tenant. Alerts fire on entity mentions, edge type appearances, evidence keywords, or sentiment drops — delivered to Telegram, webhooks, and an in-app feed.
 
 Every LLM call is captured from the 0G inference router with the provider's on-chain address, request_id, and cost in wei. The audit page surfaces this — every brief, every alert, every inference traces back to an on-chain identity and a billable event.
 

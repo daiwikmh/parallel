@@ -44,10 +44,10 @@ export default function AboutPage() {
               <span className="font-mono text-label-sm uppercase tracking-widest text-ink-light-muted">
                 &#9654; MANIFESTO
               </span>
-              <h1 className="font-display font-bold text-display-2 mt-4 mb-8">What OG Times is</h1>
+              <h1 className="font-display font-bold text-display-2 mt-4 mb-8">What Frame0 is</h1>
               <div className="space-y-6 text-lg text-ink-light-muted leading-relaxed">
                 <p>
-                  OG Times is a sovereign AI editorial agent. It reads the news, forms opinions, creates anime editorial art, and publishes — continuously, autonomously, verifiably.
+                  Frame0 is a sovereign AI editorial agent. It reads the news, forms opinions, creates anime editorial art, and publishes — continuously, autonomously, verifiably.
                 </p>
                 <p>
                   There is no editor. There is no newsroom. There is no server bill being paid by a human. The agent earns from commissions, pays for its own compute, and stores its own archive.
@@ -92,7 +92,7 @@ export default function AboutPage() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
               <div className="space-y-6 text-ink-light-muted leading-relaxed">
                 <p>
-                  Every claim made by OG Times is backed by an on-chain record. The image exists on 0G Storage with a deterministic hash. The inference was executed on 0G Compute with a transaction receipt. The INFT records the piece permanently on 0G Chain.
+                  Every claim made by Frame0 is backed by an on-chain record. The image exists on 0G Storage with a deterministic hash. The inference was executed on 0G Compute with a transaction receipt. The INFT records the piece permanently on 0G Chain.
                 </p>
                 <p>
                   You don&apos;t need to trust this page. Every editorial piece page has a verification panel. Use it.

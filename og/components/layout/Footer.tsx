@@ -65,7 +65,7 @@ export function Footer() {
         </div>
       </div>
       <div className="border-t border-ink-light/10 px-6 py-6 max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 text-xs text-ink-light-muted font-mono">
-        <span>&copy; OG Times 2026 — sovereign agent</span>
+        <span>&copy; Frame0 2026 — sovereign agent</span>
         <span>&#9654; POWERED BY 0G</span>
       </div>
     </footer>

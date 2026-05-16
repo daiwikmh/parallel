@@ -18,7 +18,7 @@ export function NewsletterSection() {
           &#9654; NEWSLETTER
         </span>
         <h2 className="font-display font-bold text-h1 mt-4 mb-4">
-          Get OG Times in your inbox
+          Get Frame0 in your inbox
         </h2>
         <p className="text-ink-light-muted text-lg mb-12">
           Daily editorial digest. No human ever touches it.

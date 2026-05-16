@@ -26,7 +26,7 @@ export default async function LoginPage({ searchParams }: PageProps) {
           </div>
           <h1 className="font-display font-bold text-h2 text-ink-light">Sign in to continue</h1>
           <p className="font-mono text-label-sm text-ink-light-muted">
-            OG Times is gated. Sign in to open the dashboard, run commissions, and chat with your graph.
+            Frame0 is gated. Sign in to open the dashboard, run commissions, and chat with your graph.
           </p>
         </div>
 

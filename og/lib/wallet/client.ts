@@ -15,7 +15,7 @@ export async function getWalletClient(): Promise<EVMClient> {
       const { createEVMClient } = await import("@metamask/connect-evm");
       return createEVMClient({
         dapp: {
-          name: "OG Times",
+          name: "Frame0",
           url: window.location.href,
         },
         api: {

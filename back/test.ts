@@ -1,7 +1,7 @@
 import { fetchAllSources } from './src/worker/fetch'
 
 async function main() {
-  console.log('Running OG Times news aggregator (all providers)...\n')
+  console.log('Running Frame0 news aggregator (all providers)...\n')
   const t0 = Date.now()
   const { ranked, providerResults } = await fetchAllSources()
   const ms = Date.now() - t0

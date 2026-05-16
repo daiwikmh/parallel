@@ -4,7 +4,7 @@ pragma solidity ^0.8.20;
 /**
  * OGTimesPayment
  *
- * Per-commission unlock for OG Times. User pays at least minPriceWei in OG to
+ * Per-commission unlock for Frame0. User pays at least minPriceWei in OG to
  * unlock a specific commission for the calling wallet. The backend listens for
  * the Paid event and grants the wallet permanent access to that commission id.
  *

@@ -70,12 +70,12 @@ export function HowItWorksSection() {
           >
             <img
               src="/illustrations/topo-3.svg"
-              alt="OG Times architecture diagram"
+              alt="Frame0 architecture diagram"
               className="w-64 h-64 lg:w-96 lg:h-96"
             />
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="text-center">
-                <div className="font-display font-bold text-2xl text-bg-dark mb-1">OG TIMES<span className="text-accent-lime text-base relative -top-1 ml-0.5">&apos;</span></div>
+                <div className="font-display font-bold text-2xl text-bg-dark mb-1">Frame0<span className="text-accent-lime text-base relative -top-1 ml-0.5">&apos;</span></div>
                 <div className="font-mono text-xs text-ink-dark-muted uppercase tracking-widest">Sovereign agent</div>
               </div>
             </div>
