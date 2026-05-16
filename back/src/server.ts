@@ -9,9 +9,12 @@ import integrationsRouter from './api/integrations.router'
 import alertsRouter from './api/alerts.router'
 import uploadsRouter from './api/uploads.router'
 import vaultRouter from './api/vault.router'
+import { runMigrations } from './db/migrate'
 import { dumpFlags } from './lib/flags'
 import { startPaymentEventListener } from './og/chain'
 import { startTelegramBot } from './integrations/telegram-bot'
+
+runMigrations()
 
 const app = express()
 const PORT = Number(process.env.PORT ?? 4000)
