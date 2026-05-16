@@ -92,6 +92,8 @@ export interface CommissionRow {
   created_at: number
   paused_at: number | null
   dropped_at: number | null
+  tg_alerts: number
+  tg_briefs: number
 }
 
 export interface ArticleRow {

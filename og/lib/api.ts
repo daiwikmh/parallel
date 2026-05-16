@@ -44,14 +44,18 @@ export interface NewsResponse {
   items: NewsItem[];
 }
 
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ?? "http://localhost:4000";
+const API_BASE = "/api/_back";
+
+function backUrl(path: string): string {
+  const stripped = path.startsWith("/api/") ? path.slice(4) : path;
+  return `${API_BASE}${stripped.startsWith("/") ? stripped : "/" + stripped}`;
+}
 
 export async function fetchNews(opts: { limit?: number; force?: boolean } = {}): Promise<NewsResponse> {
   const params = new URLSearchParams();
   if (opts.limit) params.set("limit", String(opts.limit));
   if (opts.force) params.set("force", "1");
-  const url = `${API_BASE}/api/news${params.toString() ? `?${params}` : ""}`;
+  const url = backUrl(`/api/news${params.toString() ? `?${params}` : ""}`);
   const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) throw new Error(`fetchNews failed: ${res.status}`);
   return res.json();
@@ -65,7 +69,7 @@ export interface StatusResponse {
 }
 
 export async function fetchNewsStatus(): Promise<StatusResponse> {
-  const res = await fetch(`${API_BASE}/api/news/status`, { cache: "no-store" });
+  const res = await fetch(backUrl(`/api/news/status`), { cache: "no-store" });
   if (!res.ok) throw new Error(`fetchNewsStatus failed: ${res.status}`);
   return res.json();
 }
@@ -105,19 +109,19 @@ export interface AgentActivityEvent {
 }
 
 export async function fetchAgentStatus(): Promise<AgentStatusResponse> {
-  const res = await fetch(`${API_BASE}/api/agent/status`, { cache: "no-store" });
+  const res = await fetch(backUrl(`/api/agent/status`), { cache: "no-store" });
   if (!res.ok) throw new Error(`fetchAgentStatus failed: ${res.status}`);
   return res.json();
 }
 
 export async function fetchAgentLog(limit = 20): Promise<{ events: AgentActivityEvent[] }> {
-  const res = await fetch(`${API_BASE}/api/agent/log?limit=${limit}`, { cache: "no-store" });
+  const res = await fetch(backUrl(`/api/agent/log?limit=${limit}`), { cache: "no-store" });
   if (!res.ok) throw new Error(`fetchAgentLog failed: ${res.status}`);
   return res.json();
 }
 
 export async function triggerAgentRun(): Promise<AgentRunResult> {
-  const res = await fetch(`${API_BASE}/api/agent/run`, {
+  const res = await fetch(backUrl(`/api/agent/run`), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
   });
@@ -154,6 +158,18 @@ export interface Commission {
   created_at: number;
   paused_at: number | null;
   dropped_at: number | null;
+  tg_alerts: number;
+  tg_briefs: number;
+}
+
+export async function updateCommissionSubscriptions(
+  id: string,
+  patch: { tg_alerts?: boolean; tg_briefs?: boolean },
+): Promise<{ commission: Commission }> {
+  return jsonFetch(`/api/commissions/${id}/subscriptions`, {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
 }
 
 export interface Classification {
@@ -209,7 +225,7 @@ function getWalletHeader(): Record<string, string> {
 }
 
 async function jsonFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
+  const res = await fetch(backUrl(path), {
     cache: "no-store",
     headers: {
       "Content-Type": "application/json",
@@ -268,6 +284,74 @@ export async function fetchGraph(commission: string, since?: number): Promise<Gr
 
 export async function fetchEntity(id: string): Promise<EntityDetail> {
   return jsonFetch(`/api/graph/entities/${encodeURIComponent(id)}`);
+}
+
+export interface ChatTurn {
+  role: "user" | "assistant";
+  content: string;
+}
+
+export interface ChatResponse {
+  answer: string;
+  trace_id: string | null;
+  model: string;
+  context: { entities: number; edges: number; briefs: number; uploads: number };
+}
+
+export async function chatWithCommission(
+  commissionId: string,
+  message: string,
+  history: ChatTurn[],
+): Promise<ChatResponse> {
+  return jsonFetch(`/api/commissions/${commissionId}/chat`, {
+    method: "POST",
+    body: JSON.stringify({ message, history }),
+  });
+}
+
+export interface VaultBrief {
+  id: number;
+  commission_id: string;
+  commission_query: string;
+  article_id: string | null;
+  storage_hash: string | null;
+  trace_id: string | null;
+  created_at: number;
+  body_excerpt: string;
+}
+
+export interface VaultUpload {
+  id: string;
+  commission_id: string;
+  commission_query: string;
+  filename: string;
+  size: number;
+  content_sha256: string;
+  storage_uri: string | null;
+  rows_total: number;
+  rows_processed: number;
+  entities_added: number;
+  edges_added: number;
+  status: string;
+  created_at: number;
+}
+
+export interface VaultPayload {
+  briefs: VaultBrief[];
+  uploads: VaultUpload[];
+  stats: {
+    briefs_total: number;
+    briefs_anchored: number;
+    uploads_total: number;
+    uploads_anchored: number;
+    bytes_total: number;
+  };
+  flags: { OG_STORAGE_ENABLED: boolean };
+}
+
+export async function fetchVault(commissionId?: string): Promise<VaultPayload> {
+  const qs = commissionId ? `?commission=${encodeURIComponent(commissionId)}` : "";
+  return jsonFetch(`/api/vault${qs}`);
 }
 
 export interface Brief {
@@ -487,7 +571,7 @@ export interface UploadStartResponse {
 export async function uploadCsv(commissionId: string, file: File): Promise<UploadStartResponse> {
   const form = new FormData();
   form.append("file", file);
-  const res = await fetch(`${API_BASE}/api/uploads/${commissionId}`, {
+  const res = await fetch(backUrl(`/api/uploads/${commissionId}`), {
     method: "POST",
     headers: { ...getWalletHeader() },
     body: form,

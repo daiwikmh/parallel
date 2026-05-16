@@ -2,7 +2,6 @@
 import Link from "next/link";
 import { useState } from "react";
 import { Logo } from "../ui/Logo";
-import { AuthButton } from "../ui/AuthButton";
 import { Button } from "../ui/Button";
 
 export function Header() {
@@ -24,7 +23,6 @@ export function Header() {
           <Link href="/dashboard">
             <Button variant="lime" size="sm">Open dashboard &#9654;</Button>
           </Link>
-          <AuthButton />
         </div>
 
         <button
@@ -49,7 +47,6 @@ export function Header() {
           <Link href="/dashboard" onClick={() => setMobileOpen(false)}>
             <Button variant="lime" size="sm" className="w-full mt-2 justify-center">Open dashboard &#9654;</Button>
           </Link>
-          <AuthButton className="w-full mt-2" />
         </div>
       )}
     </header>

@@ -8,6 +8,7 @@ import sourcesRouter from './api/sources.router'
 import integrationsRouter from './api/integrations.router'
 import alertsRouter from './api/alerts.router'
 import uploadsRouter from './api/uploads.router'
+import vaultRouter from './api/vault.router'
 import { dumpFlags } from './lib/flags'
 import { startPaymentEventListener } from './og/chain'
 import { startTelegramBot } from './integrations/telegram-bot'
@@ -41,6 +42,28 @@ app.get('/health', (_req, res) => {
   res.json({ ok: true, ts: Date.now() })
 })
 
+const INTERNAL_TOKEN = process.env.BACKEND_INTERNAL_TOKEN ?? ''
+if (!INTERNAL_TOKEN) {
+  console.warn('[security] BACKEND_INTERNAL_TOKEN not set — backend API is OPEN. Set it before exposing publicly.')
+}
+
+app.use((req: Request, res: Response, next: NextFunction) => {
+  if (!req.path.startsWith('/api/')) {
+    next()
+    return
+  }
+  if (!INTERNAL_TOKEN) {
+    next()
+    return
+  }
+  const supplied = req.header('x-internal-token') ?? ''
+  if (supplied && supplied === INTERNAL_TOKEN) {
+    next()
+    return
+  }
+  res.status(401).json({ error: 'unauthorized: missing or invalid X-Internal-Token' })
+})
+
 app.use('/api/news', newsRouter)
 app.use('/api/agent', agentRouter)
 app.use('/api/commissions', commissionsRouter)
@@ -49,6 +72,7 @@ app.use('/api/sources', sourcesRouter)
 app.use('/api/integrations', integrationsRouter)
 app.use('/api/alerts', alertsRouter)
 app.use('/api/uploads', uploadsRouter)
+app.use('/api/vault', vaultRouter)
 
 // Auth router intentionally not mounted yet: middleware/jwt is missing.
 

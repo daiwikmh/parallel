@@ -10,6 +10,7 @@ import {
 } from '../db/repo'
 import type { ExtractedEntity, ExtractedEdge } from '../agent/extract'
 import type { NewsItem } from '../lib/types'
+import { sendTelegramText } from '../integrations/telegram-send'
 
 export interface AlertContext {
   commissionId: string
@@ -145,13 +146,15 @@ async function deliver(rule: AlertRuleRow, ctx: AlertContext, payload: AlertPayl
   }
 
   const commission = getCommission(ctx.commissionId)
-  if (commission) {
+  if (commission && commission.tg_alerts === 1) {
     const owner = commission.owner_id
     const chatId = getTelegramChatIdFor(owner) ?? getTelegramChatIdFor('anon')
     if (chatId) {
-      const tgResult = await sendTelegram(chatId, formatTelegramMessage(payload))
+      const tgResult = await sendTelegramText(chatId, formatTelegramMessage(payload))
       delivered.push(tgResult)
     }
+  } else if (commission && commission.tg_alerts === 0) {
+    delivered.push('telegram:muted')
   }
 
   return delivered
@@ -171,19 +174,3 @@ function kindEmoji(kind: AlertKind): string {
   }
 }
 
-async function sendTelegram(chatId: string, text: string): Promise<string> {
-  const token = process.env.TG_BOT_TOKEN
-  if (!token) return 'telegram:no-token'
-  try {
-    const r = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ chat_id: chatId, text, disable_web_page_preview: true }),
-      signal: AbortSignal.timeout(7_000),
-    })
-    const body = (await r.json()) as { ok?: boolean; description?: string }
-    return body.ok ? 'telegram' : `telegram:err:${body.description?.slice(0, 60) ?? 'unknown'}`
-  } catch (e) {
-    return `telegram:err:${(e as Error).message.slice(0, 60)}`
-  }
-}

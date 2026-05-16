@@ -105,7 +105,7 @@ export default function SourcesPage() {
             <div className="border border-accent-orange/60 bg-accent-orange/10 px-4 py-3 mb-8 font-mono text-sm text-ink-dark">
               &#9654; {error}
               <div className="text-ink-dark-muted text-label-sm mt-1">
-                Is the backend running on {process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"}?
+                Is the backend reachable at the proxy (<code>/api/_back</code>)?
               </div>
             </div>
           )}

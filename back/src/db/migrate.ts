@@ -10,6 +10,8 @@ db.exec(sql)
 const ADDITIVE_COLUMNS: Array<{ table: string; column: string; type: string }> = [
   { table: 'briefs', column: 'storage_hash', type: 'TEXT' },
   { table: 'briefs', column: 'chain_tx_hash', type: 'TEXT' },
+  { table: 'commissions', column: 'tg_alerts', type: 'INTEGER NOT NULL DEFAULT 1' },
+  { table: 'commissions', column: 'tg_briefs', type: 'INTEGER NOT NULL DEFAULT 0' },
 ]
 for (const { table, column, type } of ADDITIVE_COLUMNS) {
   try {

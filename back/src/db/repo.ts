@@ -226,7 +226,34 @@ export function createCommission(input: CreateCommissionInput): CommissionRow {
     created_at: t,
     paused_at: null,
     dropped_at: null,
+    tg_alerts: 1,
+    tg_briefs: 0,
   }
+}
+
+export interface CommissionSubscriptionPatch {
+  tg_alerts?: boolean
+  tg_briefs?: boolean
+}
+
+export function updateCommissionSubscriptions(
+  id: string,
+  patch: CommissionSubscriptionPatch,
+): CommissionRow | null {
+  const sets: string[] = []
+  const vals: (string | number)[] = []
+  if (patch.tg_alerts !== undefined) {
+    sets.push('tg_alerts = ?')
+    vals.push(patch.tg_alerts ? 1 : 0)
+  }
+  if (patch.tg_briefs !== undefined) {
+    sets.push('tg_briefs = ?')
+    vals.push(patch.tg_briefs ? 1 : 0)
+  }
+  if (!sets.length) return getCommission(id)
+  vals.push(id)
+  db.query(`UPDATE commissions SET ${sets.join(', ')} WHERE id = ?`).run(...vals)
+  return getCommission(id)
 }
 
 export function listCommissions(owner_id = 'anon'): CommissionRow[] {

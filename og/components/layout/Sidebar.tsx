@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { Logo } from "../ui/Logo";
-import { AuthButton } from "../ui/AuthButton";
+import { UserMenu } from "../ui/UserMenu";
 import { ConnectWallet } from "../wallet/ConnectWallet";
 import { TelegramSection } from "../wallet/TelegramSection";
 import { fetchNewsStatus } from "@/lib/api";
@@ -16,7 +16,9 @@ interface NavItem {
 
 const NAV: NavItem[] = [
   { href: "/dashboard",            label: "Dashboard",  letter: "D" },
+  { href: "/chat",                 label: "Chat",       letter: "C" },
   { href: "/sources",              label: "Sources",    letter: "S" },
+  { href: "/vault",                label: "Vault",      letter: "V" },
   { href: "/agent",                label: "Audit Log",  letter: "L" },
 ];
 
@@ -155,14 +157,12 @@ export function Sidebar() {
             <Logo />
           </Link>
         )}
-        <div className={collapsed ? "" : "shrink-0"}>
-          <AuthButton />
-        </div>
       </div>
 
       {navList}
       <ConnectWallet collapsed={collapsed} />
       {!collapsed && <TelegramSection />}
+      <UserMenu collapsed={collapsed} />
       {statusPill}
 
       <button

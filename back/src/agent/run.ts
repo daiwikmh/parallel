@@ -15,7 +15,9 @@ import {
   getEntity,
   linkArticleEntity,
   linkCommissionArticle,
+  getTelegramChatIdFor,
 } from '../db/repo'
+import { sendTelegramText } from '../integrations/telegram-send'
 import { refreshTokenPrice } from '../worker/priceData'
 import { uploadJSON } from '../og/storage'
 import { db } from '../db/client'
@@ -155,16 +157,34 @@ export async function runCommissionBatch(commissionId: string, limit = 3): Promi
     let totalEntities = 0
     let totalEdges = 0
     let processed = 0
+    const briefedItems: NewsItem[] = []
     for (const item of filtered) {
       try {
         const r = await runOnce({ commissionId, pickedItem: item })
         totalEntities += r.graph.entities
         totalEdges += r.graph.edges
         processed++
+        briefedItems.push(r.pickedItem)
       } catch (e) {
         errors.push((e as Error).message)
       }
     }
+
+    if (commission.tg_briefs === 1 && briefedItems.length > 0) {
+      try {
+        const chatId = getTelegramChatIdFor(commission.owner_id) ?? getTelegramChatIdFor('anon')
+        if (chatId) {
+          const digest = formatBriefDigest(commission.query_text, briefedItems, totalEntities, totalEdges)
+          const r = await sendTelegramText(chatId, digest)
+          addActivity('ALERT', `briefs digest → ${r}`)
+        } else {
+          addActivity('WARN', 'tg_briefs is on but no chat_id is set')
+        }
+      } catch (e) {
+        addActivity('WARN', `brief digest send failed: ${(e as Error).message}`)
+      }
+    }
+
     return {
       commissionId,
       processed,
@@ -176,6 +196,15 @@ export async function runCommissionBatch(commissionId: string, limit = 3): Promi
       source,
     }
   })
+}
+
+function formatBriefDigest(query: string, items: NewsItem[], entities: number, edges: number): string {
+  const head = `[BRIEFS] ${query} — ${items.length} new brief${items.length === 1 ? '' : 's'} (+${entities} entities, +${edges} relations)`
+  const lines = items.slice(0, 6).map((it, i) => {
+    const title = it.title.length > 110 ? it.title.slice(0, 107) + '…' : it.title
+    return `${i + 1}. ${title}\n${it.url}`
+  })
+  return [head, '', ...lines].join('\n')
 }
 
 async function runOnce(opts: RunOptions): Promise<AgentRunResult> {

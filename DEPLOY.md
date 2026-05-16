@@ -1,3 +1,124 @@
+# Deploying to Railway with Google OAuth gate
+
+The `(app)` routes (`/dashboard`, `/chat`, `/sources`, `/vault`, `/agent`) are
+gated by NextAuth v5 with a Google provider. Marketing pages stay public.
+Unauthenticated requests are redirected to `/login`.
+
+This is access control only. There is no per-user data isolation yet — every
+signed-in user operates on the same SQLite DB (`owner_id='anon'`). Acceptable
+for hackathon / private demo, not for multi-tenant production.
+
+## 1. Create the Google OAuth client (5 min, one-time)
+
+1. Open <https://console.cloud.google.com/apis/credentials> and create or pick
+   a project.
+2. Configure the OAuth consent screen:
+   - User type: `External`.
+   - App name: `OG Times`.
+   - User support email: yours.
+   - Add yourself to **Test users** while the app is unpublished (otherwise
+     non-test Google accounts get a "verification required" wall).
+3. Click **Create Credentials → OAuth client ID**.
+   - Application type: `Web application`.
+   - Authorized redirect URIs (add BOTH while developing):
+     - `http://localhost:3000/api/auth/callback/google`
+     - `https://<your-railway-app>.up.railway.app/api/auth/callback/google`
+4. Copy the **Client ID** and **Client secret**.
+
+## 2. Frontend env vars (`og/.env.local` for local, Railway dashboard for prod)
+
+```bash
+AUTH_GOOGLE_ID=<client id from step 3>
+AUTH_GOOGLE_SECRET=<client secret from step 3>
+
+# Generate once with: openssl rand -base64 32
+AUTH_SECRET=<random 32-byte base64 string>
+
+# For Railway / any host other than localhost:
+AUTH_TRUST_HOST=true
+AUTH_URL=https://<your-railway-app>.up.railway.app
+
+# Where the Next proxy forwards backend calls. Use Railway's private DNS
+# in production so the backend has NO public URL.
+BACKEND_INTERNAL_URL=http://<backend-service>.railway.internal:4000
+
+# Must match BACKEND_INTERNAL_TOKEN set on the backend service.
+# Generate once with: openssl rand -base64 32
+BACKEND_INTERNAL_TOKEN=<random 32-byte base64 string>
+```
+
+NOTE: `NEXT_PUBLIC_API_URL` is no longer used. All browser API calls go through
+the same-origin Next proxy at `/api/_back/*`, which checks the NextAuth session
+and forwards to the backend with `X-Internal-Token`. The browser never sees the
+backend URL.
+
+Important: do NOT commit `og/.env.local`. Railway env vars live in the project
+dashboard; never paste secrets into the repo or shell history.
+
+## 3. Local smoke test
+
+```bash
+cd og && npm run dev
+# open http://localhost:3000/dashboard
+# you should be bounced to /login
+# sign in with a Test User Google account
+# you should land on /dashboard with your avatar in the sidebar
+```
+
+## 4. Railway deploy notes
+
+Two services in the same Railway project: `frontend` (Next.js) and
+`backend` (Bun + Express).
+
+**Frontend service:**
+- Public domain enabled (this is what users hit).
+- All `AUTH_*` env vars set before first boot; NextAuth refuses to start
+  with `AUTH_SECRET` missing.
+- `BACKEND_INTERNAL_URL` and `BACKEND_INTERNAL_TOKEN` set as above.
+- Custom domain → add a second redirect URI in Google Cloud Console and
+  update `AUTH_URL`.
+
+**Backend service:**
+- Public domain DISABLED. The backend only listens on the Railway private
+  network. Frontend reaches it via `<backend-service>.railway.internal`.
+- Required env vars:
+  - `BACKEND_INTERNAL_TOKEN` — must match the frontend's value.
+  - `OG_INFERENCE_API`, `OG_INFERENCE_URL`, `OG_INFERENCE_MODEL`.
+  - `TG_BOT_TOKEN` (if Telegram delivery is enabled).
+  - `OG_CHAIN_ENABLED=true`, `OG_PAYMENT_CONTRACT=0x2a8142Db...` (if paywall
+    is enabled).
+  - `OG_STORAGE_ENABLED=true`, `OG_STORAGE_PRIVATE_KEY=...` (if storage
+    anchoring is enabled — fund the wallet first).
+  - `FRONTEND_URL=https://<frontend>.up.railway.app` (for CORS allowlist).
+- `/health` stays open without the token so Railway's health probes work.
+
+**Why this layout:** the backend's API surface is now unreachable from the
+public internet. The only path in is: browser → Next session check → Next
+proxy → private network → backend. A random visitor curling the backend
+sees nothing — there's no public URL to curl.
+
+## 5. Known gaps
+
+- Any Google account passes the gate. Add an email allowlist when you have
+  one — drop a `signIn` callback in `og/auth.ts` that checks
+  `AUTH_ALLOWED_EMAILS`.
+- Sign-out clears the NextAuth session cookie only; the wallet address stays
+  in `localStorage`. Clear it manually if testing isolation.
+- `BACKEND_INTERNAL_TOKEN` is the shared secret between proxy and backend.
+  If it leaks, the backend is naked again. Rotate it whenever you suspect
+  exposure.
+- Multi-user data isolation is NOT solved by this. Every authed user still
+  operates on the same SQLite DB (`owner_id='anon'`). Two signed-in users
+  see each other's commissions/briefs/chats.
+- Backend background workers (Telegram long-poll, 0G chain event listener)
+  stay running 24/7 regardless of whether anyone is signed in — they're not
+  request-triggered and they cost ~zero. If you want to scale-to-zero, you'll
+  need to make those externally-triggered too.
+
+---
+
+# Original hackathon build log (BYO CSV + extraction pipeline)
+
 00:00 — 00:10 · Schema + endpoint scaffold (10 min)
   - Add uploads table: id, commission_id, filename, mime, size, content_sha256, storage_uri, rows_total, rows_processed, entities_added, edges_added,
   status, error, created_at
