@@ -32,6 +32,19 @@ Ask the graph anything in `/chat`. Drop a CSV into `/dashboard`. Every action is
 
 ---
 
+## Standout features
+
+- **Chat with your knowledge graph** — per-commission Q&A grounded in your entities, edges, briefs, and uploaded data. Refuses on missing context, never hallucinates connections.
+- **0G Storage anchoring** — every brief uploaded via the 0G Storage SDK returns a verifiable `0g:<rootHash>`; the `/vault` page lists every anchored artifact with one-click copy.
+- **Telegram subscriptions** — per-commission toggles for alert fires and brief digests via `@ogtimes_bot`. One bot, one tap to bind your chat ID, every material change pings your phone.
+- **Signed inference receipts** — every LLM call carries the on-chain 0G provider address, billing in wei, and request_id. Total OG spent visible in the audit log.
+- **Typed knowledge graph** — 7 entity types, 16 typed edge kinds, domain/range validator rejects nonsense edges. Articles persist as graph nodes too.
+- **CSV ingestion** — drop a 20-row file on any commission; rows pass through the same typed-entity extractor as news articles.
+- **0G Chain paywall** — 0.01 OG on Galileo unlocks 24h of unlimited runs across every commission. Listener + verify-on-demand for missed events.
+- **Audit log** — every commission, brief, alert fire, source addition, upload, inference call, with its 0G trace and timestamp.
+
+---
+
 ## How it uses 0G
 
 | Layer | Status | Used for |
