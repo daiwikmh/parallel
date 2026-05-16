@@ -15,7 +15,6 @@ export function Header() {
         <nav className="hidden md:flex items-center gap-8 text-sm font-medium">
           <Link href="/explore" className="text-ink-light-muted hover:text-accent-lime transition-colors">Explore</Link>
           <Link href="/agent" className="text-ink-light-muted hover:text-accent-lime transition-colors">Agent</Link>
-          <Link href="/commission" className="text-ink-light-muted hover:text-accent-lime transition-colors">Commission</Link>
           <Link href="/about" className="text-ink-light-muted hover:text-accent-lime transition-colors">About</Link>
         </nav>
 
@@ -42,7 +41,6 @@ export function Header() {
         <div className="md:hidden bg-bg-dark border-t border-ink-light/10 px-6 py-4 flex flex-col gap-4">
           <Link href="/explore" className="text-ink-light-muted hover:text-accent-lime py-2 font-mono text-label uppercase tracking-widest" onClick={() => setMobileOpen(false)}>&#9654; Explore</Link>
           <Link href="/agent" className="text-ink-light-muted hover:text-accent-lime py-2 font-mono text-label uppercase tracking-widest" onClick={() => setMobileOpen(false)}>&#9654; Agent</Link>
-          <Link href="/commission" className="text-ink-light-muted hover:text-accent-lime py-2 font-mono text-label uppercase tracking-widest" onClick={() => setMobileOpen(false)}>&#9654; Commission</Link>
           <Link href="/about" className="text-ink-light-muted hover:text-accent-lime py-2 font-mono text-label uppercase tracking-widest" onClick={() => setMobileOpen(false)}>&#9654; About</Link>
           <Link href="/dashboard" onClick={() => setMobileOpen(false)}>
             <Button variant="lime" size="sm" className="w-full mt-2 justify-center">Open dashboard &#9654;</Button>

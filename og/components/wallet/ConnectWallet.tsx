@@ -37,7 +37,7 @@ export function ConnectWallet({ collapsed = false }: Props) {
   }
 
   return (
-    <div className="border-t border-ink-light/10 px-3 py-3 font-mono text-label-sm">
+    <div className="border-t border-ink-light/10 px-4 py-3 font-mono text-label-sm">
       <button
         onClick={() => setOpen((v) => !v)}
         className="w-full flex items-center justify-between text-ink-light-muted uppercase tracking-widest hover:text-accent-lime transition-colors"

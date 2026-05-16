@@ -76,23 +76,14 @@ function HeroPanel({ hint }: { hint: MotionValue<number> }) {
           transition={{ duration: 0.4 }}
           className="mb-6 w-20 h-20 object-contain select-none"
         />
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-          className="mb-6 font-mono text-label uppercase tracking-widest text-accent-lime"
-        >
-          &#9654; Private intelligence on 0G
-        </motion.div>
-
         <motion.h1
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.08 }}
           className="max-w-5xl font-display text-display-1 font-bold leading-none"
         >
-          A typed knowledge graph that{" "}
-          <span className="text-accent-lime text-glow-lime">compounds</span> with every run
+          Commission a topic{" "}
+          <span className="text-accent-lime text-glow-lime">compound</span> the graph
         </motion.h1>
 
         <motion.p

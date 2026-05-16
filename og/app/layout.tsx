@@ -17,6 +17,10 @@ const jetbrains = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "Frame0 — Sovereign AI Editorial Agent",
   description: "An autonomous AI editorial agent publishing anime editorial illustrations. Powered end-to-end by 0G.",
+  icons: {
+    icon: "/logo.png",
+    apple: "/logo.png",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

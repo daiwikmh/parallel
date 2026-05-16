@@ -61,7 +61,7 @@ export function UserMenu({ collapsed }: { collapsed?: boolean }) {
   }
 
   return (
-    <div className="border-t border-ink-light/10 px-3 py-3">
+    <div className="border-t border-ink-light/10 px-4 py-3">
       <div className="flex items-center gap-2 mb-2 min-w-0">
         <span className="shrink-0 w-7 h-7 flex items-center justify-center bg-accent-lime/20 text-accent-lime font-mono text-label-sm">
           {initial}

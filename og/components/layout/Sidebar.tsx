@@ -15,11 +15,11 @@ interface NavItem {
 }
 
 const NAV: NavItem[] = [
-  { href: "/dashboard",            label: "Dashboard",  letter: "D" },
-  { href: "/chat",                 label: "Chat",       letter: "C" },
-  { href: "/sources",              label: "Sources",    letter: "S" },
-  { href: "/vault",                label: "Vault",      letter: "V" },
-  { href: "/agent",                label: "Audit Log",  letter: "L" },
+  { href: "/dashboard", label: "Dashboard", letter: "D" },
+  { href: "/chat",      label: "Chat",      letter: "C" },
+  { href: "/sources",   label: "Sources",   letter: "S" },
+  { href: "/vault",     label: "Vault",     letter: "V" },
+  { href: "/agent",     label: "Audit Log", letter: "A" },
 ];
 
 function activeHref(pathname: string): string | null {
@@ -103,11 +103,11 @@ export function Sidebar() {
     };
   }, []);
 
-  const widthClass = collapsed ? "w-16" : "w-56";
+  const widthClass = collapsed ? "w-14" : "w-60";
 
   const currentActive = activeHref(pathname);
   const navList = (
-    <nav className="flex-1 overflow-y-auto py-3">
+    <nav className="flex-1 overflow-y-auto py-2">
       {NAV.map((item) => {
         const active = currentActive === item.href;
         return (
@@ -118,12 +118,16 @@ export function Sidebar() {
             className={`group flex items-center gap-3 px-4 py-2.5 font-mono text-label uppercase tracking-widest transition-colors border-l-2 ${
               active
                 ? "text-accent-lime border-accent-lime bg-bg-dark-2"
-                : "text-ink-light-muted border-transparent hover:text-ink-light hover:bg-bg-dark-2/50"
+                : "text-ink-light-muted border-transparent hover:text-ink-light hover:bg-bg-dark-2/40"
             }`}
             title={collapsed ? item.label : undefined}
           >
-            <span className={`shrink-0 ${active ? "text-accent-lime" : "text-ink-light-muted group-hover:text-ink-light"}`}>
-              {collapsed ? item.letter : "▶"}
+            <span
+              className={`shrink-0 w-3 text-center ${
+                active ? "text-accent-lime" : "text-ink-light-muted/60 group-hover:text-ink-light/80"
+              }`}
+            >
+              {collapsed ? item.letter : active ? "▶" : "·"}
             </span>
             {!collapsed && <span className="truncate">{item.label}</span>}
           </Link>
@@ -132,28 +136,41 @@ export function Sidebar() {
     </nav>
   );
 
-  const statusPill = (
-    <div className={`px-4 py-3 border-t border-ink-light/10 font-mono text-label-sm ${collapsed ? "text-center" : ""}`}>
-      <div className="flex items-center gap-2">
-        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${statusOk ? "bg-accent-lime animate-pulse" : "bg-accent-orange"}`} />
-        {!collapsed && (
-          <span className="text-ink-light-muted uppercase tracking-widest truncate">
-            {statusOk
-              ? statusAgeS == null
-                ? "live"
-                : `live · ${statusAgeS}s ago`
-              : "offline"}
-          </span>
-        )}
+  const statusText = statusOk
+    ? statusAgeS == null
+      ? "live"
+      : `live · ${statusAgeS}s`
+    : "offline";
+
+  const bottomBar = (
+    <div className="border-t border-ink-light/10 font-mono text-label-sm">
+      <div className={`flex items-center ${collapsed ? "flex-col gap-2 py-3" : "justify-between px-4 py-3"}`}>
+        <div className={`flex items-center gap-2 ${collapsed ? "" : "min-w-0"}`}>
+          <span
+            className={`shrink-0 w-1.5 h-1.5 rounded-full ${statusOk ? "bg-accent-lime animate-pulse" : "bg-accent-orange"}`}
+            title={statusText}
+          />
+          {!collapsed && (
+            <span className="text-ink-light-muted uppercase tracking-widest truncate">{statusText}</span>
+          )}
+        </div>
+        <button
+          onClick={toggle}
+          className="hidden md:flex items-center font-mono text-label-sm uppercase tracking-widest text-ink-light-muted hover:text-accent-lime transition-colors shrink-0"
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          title={collapsed ? "Expand" : "Collapse"}
+        >
+          {collapsed ? "▶" : "◀"}
+        </button>
       </div>
     </div>
   );
 
   const sidebarContent = (
     <div className="flex h-full flex-col bg-bg-dark text-ink-light">
-      <div className={`flex items-center gap-3 px-4 py-3 border-b border-ink-light/10 ${collapsed ? "justify-center" : "justify-between"}`}>
+      <div className={`flex items-center px-4 py-3 border-b border-ink-light/10 ${collapsed ? "justify-center" : "justify-start"}`}>
         {!collapsed && (
-          <Link href="/dashboard" onClick={() => setMobileOpen(false)}>
+          <Link href="/dashboard" onClick={() => setMobileOpen(false)} className="block">
             <Logo />
           </Link>
         )}
@@ -163,15 +180,7 @@ export function Sidebar() {
       <ConnectWallet collapsed={collapsed} />
       {!collapsed && <TelegramSection />}
       <UserMenu collapsed={collapsed} />
-      {statusPill}
-
-      <button
-        onClick={toggle}
-        className="hidden md:flex items-center justify-center px-4 py-3 border-t border-ink-light/10 font-mono text-label-sm uppercase tracking-widest text-ink-light-muted hover:text-accent-lime transition-colors"
-        aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-      >
-        {collapsed ? "▶" : "◀  Collapse"}
-      </button>
+      {bottomBar}
     </div>
   );
 
@@ -197,7 +206,7 @@ export function Sidebar() {
 
       {mobileOpen && (
         <div className="md:hidden fixed inset-0 z-50 flex">
-          <div className="w-64 h-full">{sidebarContent}</div>
+          <div className="w-60 h-full">{sidebarContent}</div>
           <button
             className="flex-1 bg-black/60"
             onClick={() => setMobileOpen(false)}
